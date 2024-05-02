@@ -1,0 +1,36 @@
+{
+    "name": "小梦",
+    "version": "2024.5.1",
+    "manifest_version": 3,
+    "description": "源梦的小助手",
+    "icons": {
+        "16": "icons/ym16x16.png",
+        "32": "icons/ym32x32.png",
+        "48": "icons/ym48x48.png",
+        "128": "icons/ym128x128.png"
+    },
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "https://api.sourcedream.cn/*",
+        "notifications",
+        "storage"
+    ],
+    "host_permissions": [
+        ""
+      ],
+    "background": {
+        "service_worker": "background/service_worker.js",
+        "type": "module"
+    },
+    "content_scripts": [  
+        {
+            "matches": ["https://mooc1.chaoxing.com/*"],
+            "css": ["content/index.css"],
+            "js": ["content/jquery.js", "content/index.js"]
+        }
+    ],
+    "action": {
+        "default_popup": "popup/index.html"
+    }
+}
