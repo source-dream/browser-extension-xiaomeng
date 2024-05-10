@@ -1,6 +1,6 @@
 {
     "name": "小梦",
-    "version": "2024.5.1",
+    "version": "2024.5.10",
     "manifest_version": 3,
     "description": "源梦的小助手",
     "icons": {
@@ -20,7 +20,7 @@
         ""
       ],
     "background": {
-        "service_worker": "background/service_worker.js",
+        "service_worker": "background/index.js",
         "type": "module"
     },
     "content_scripts": [  

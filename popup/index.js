@@ -1,4 +1,5 @@
 const start_answer_but = document.getElementById('start_answer_but')
+
 start_answer_but.onclick = async function() {
     const [tab] = await chrome.tabs.query({
         url: ["https://mooc1.chaoxing.com/*"],
@@ -7,8 +8,8 @@ start_answer_but.onclick = async function() {
     });
     if (tab) {
         chrome.tabs.sendMessage(tab.id, {
-            action: 'createChaoXingPage',
-            createChaoXingPageEnabled: start_answer_but.checked
+            action: 'manageChaoXingPage',
+            manageChaoXingPage: start_answer_but.checked
         })
     } else {
         chrome.notifications.create({
@@ -18,27 +19,17 @@ start_answer_but.onclick = async function() {
             iconUrl: "../icons/ym128x128.png"
         },(notificationId) => {
             console.log('notificationId-->', notificationId)
-        }
-        );
+        });
     }
 }
 
 function init() {
     const checkbox = document.getElementById('start_answer_but');
     const statusDisplay = document.getElementById('status_display');
-    checkbox.addEventListener('change', function() {
-        if (this.checked) {
-            statusDisplay.textContent = '启用';
-        } else {
-            statusDisplay.textContent = '停用';
-        }
-        // 保存状态
-        chrome.storage.sync.set({
-            createChaoXingPage: this.checked
-        });
-    });
-    chrome.storage.sync.get('createChaoXingPage', function(data) {
-        checkbox.checked = data.createChaoXingPage;
+    
+    chrome.storage.sync.get('manageChaoXingPage', function(data) {
+        manageChaoXingPage = data.manageChaoXingPage;
+        checkbox.checked = manageChaoXingPage
         if (checkbox.checked) {
             statusDisplay.textContent = '启用';
         } else {
@@ -51,8 +42,31 @@ function init() {
         }, function(tabs) {
             if (tabs.length > 0) {
                 chrome.tabs.sendMessage(tabs[0].id, {
-                    action: 'createChaoXingPage',
-                    createChaoXingPageEnabled: data.createChaoXingPage
+                    action: 'manageChaoXingPage',
+                    manageChaoXingPage: manageChaoXingPage
+                })
+            }
+        });
+    });
+
+    checkbox.addEventListener('change', function() {
+        if (this.checked) {
+            statusDisplay.textContent = '启用';
+        } else {
+            statusDisplay.textContent = '停用';
+        }
+        chrome.storage.sync.set({
+            manageChaoXingPage: this.checked
+        });
+        chrome.tabs.query({
+            url: ["https://mooc1.chaoxing.com/*"],
+            active: true,
+            currentWindow: true
+        }, function(tabs) {
+            if (tabs.length > 0) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: 'manageChaoXingPage',
+                    manageChaoXingPage: data.manageChaoXingPage
                 })
             }
         });

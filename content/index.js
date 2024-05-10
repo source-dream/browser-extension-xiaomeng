@@ -14,6 +14,8 @@ function compare(a, b) {
     return count / maxLength;
 }
 
+let fetchController;
+
 function answerQuestion() {
     const inp1 = document.getElementById('cj_inp1');
     const key = inp1.value;
@@ -23,6 +25,7 @@ function answerQuestion() {
     }
     const questions = document.querySelectorAll('.questionLi')
     let alertExecuted = false;
+    const fetchPromises = [];
     questions.forEach((question) => {
         const check_answer = question.querySelector('.check_answer')
         const check_answer_dx = question.querySelector('.check_answer_dx')
@@ -32,8 +35,13 @@ function answerQuestion() {
         const questionTextElement = question.querySelector('h3');
         const questionText = questionTextElement.innerText.trim();
         const match = questionText.slice(14)
-        fetch('https://api.sourcedream.cn/cdut/questionInquiry/', {
+        const devUrl = 'http://localhost:5678/cdut/questionInquiry/';
+        const prodUrl = 'https://api.sourcedream.cn/cdut/questionInquiry/';
+        fetchController = new AbortController();
+        const signal = fetchController.signal;
+        const fetchPromise = fetch(prodUrl, {
             method: 'POST',
+            signal,
             body: JSON.stringify({match: match, key: key}),
             headers: {
                 'Content-Type': 'application/json'
@@ -44,20 +52,21 @@ function answerQuestion() {
             }
             return res.json();
         }).then(data => {
-            if (data.code === 401) {
-                console.log('没有找到答案');
-            } else if (data.code === 501) {
-                return Promise.reject('卡密余额不足');
-            } else if (data.code === 400) {
-                return Promise.reject('卡密不存在');
+            if(!data){
+                return;
+            }
+            if (data.error) {
+                return;
+            }
+            if(data.data.length === 0) {
+                return;
             }
             let flag = false;
-            console.log('data', data.data);
             data.data.some((data) => {
                 const answer = data.answer;
                 const answerArray = answer.split('');
                 let answerOptions = [];
-                data.options.forEach((option, index) => {
+                data.options.forEach((option) => {
                     if (answerArray.includes(option.slice(0, 1))) {
                         answerOptions.push(option);
                     }
@@ -68,7 +77,7 @@ function answerQuestion() {
                     optionText = optionText.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
                     answerOptions.forEach((answerOption) => {
                         answerOption = answerOption.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
-                        if(compare(optionText,answerOption)===1) {
+                        if(compare(optionText, answerOption)===1) {
                             optionTextElement.click();
                             flag = true;
                             return;
@@ -76,7 +85,6 @@ function answerQuestion() {
                     });
                 });
                 if (flag === true) {
-                    console.log("退出");
                     return flag;
                 }
             });
@@ -89,8 +97,14 @@ function answerQuestion() {
                 return
             }
         });
+        fetchPromises.push(fetchPromise);
     })
-
+    Promise.all(fetchPromises).then(() => {
+        chrome.runtime.sendMessage({ action: 'fromContent', title: '小梦-学习通助手', message: '任务已完成!空白的内容是没有匹配到的题目，请自行搜索或者使用手动搜题功能(暂不支持)或使用随机答题' });
+    });
+    $('cj_but1').text('自动答题');
+    $('cj_but1').css("background-color", "#4CAF50");
+    
 }
 function clearQuestion() {
     const questions = document.querySelectorAll('.questionLi')
@@ -105,6 +119,8 @@ function clearQuestion() {
         });
     });
 }
+
+let isAnswering = false;
 
 function createPage() {
     const page = $('<div id="cj_move_page"></div>');
@@ -123,17 +139,32 @@ function createPage() {
     page.append(inp1);
     page.append(lab1);
     $('body').append(page);
-    $('#cj_but1').click(async (e) => {
-        answerQuestion();
+    
+    but1.on('click', async (e) => {
+        if (!isAnswering) {
+            but1.text('停止答题');
+            but1.css("background-color", "red");
+            answerQuestion();
+        } else {
+            if (fetchController) {
+                fetchController.abort();
+                fetchController = null;
+            }
+            but1.text('自动答题');
+            but1.css("background-color", "#4CAF50");
+        }
+        isAnswering = !isAnswering;
     });
     $('#cj_but2').click(async (e) => {
         alert("暂时不支持");
+        
     });
     $('#cj_but3').click(async (e) => {
         alert("暂时不支持");
     });
     $('#cj_but4').click(async (e) => {
         clearQuestion();
+        chrome.runtime.sendMessage({action: 'fromContent', title: '小梦-学习通助手', message: '任务已完成'});
     });
     page.css({
         "border-radius": "10px",
@@ -222,26 +253,26 @@ function drag(ele) {
 
 chrome.runtime.onMessage.addListener(async (message) => {
     console.log('message', message)
-    if(message.action === "createChaoXingPage" && message.createChaoXingPageEnabled) {
-        createPage()
-    }
-    if(message.action === "createChaoXingPage" && !message.createChaoXingPageEnabled) {
-        $('#cj_move_page').remove()
+    if(message.action === "manageChaoXingPage") {
+        if(message.manageChaoXingPage) {
+            createPage()
+            console.log('createPage')
+        } else {
+            $('#cj_move_page').remove()
+            console.log('removePage')
+        }
     }
 })
 
 function init() {
-    chrome.storage.sync.get('createChaoXingPage', function(data) {
-        const createChaoXingPage = data.createChaoXingPage;
-        console.log("createChaoXingPage", createChaoXingPage)
-        if (createChaoXingPage && window.location.href.includes('https://mooc1.chaoxing.com/')) {
+    chrome.storage.sync.get('manageChaoXingPage', function(data) {
+        const manageChaoXingPage = data.manageChaoXingPage;
+        if (manageChaoXingPage && window.location.href.includes('https://mooc1.chaoxing.com/')) {
             createPage()
-            drag(document.getElementById('cj_move_h1'));
         } else {
             $('#cj_move_page').remove()
         }
     });
-    console.log('init');
 }
 init();
 
