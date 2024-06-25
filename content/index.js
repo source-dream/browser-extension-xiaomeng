@@ -20,7 +20,11 @@ async function answerQuestion() {
     const inp1 = document.getElementById('cj_inp1');
     const key = inp1.value;
     if (!key) {
-        alert('请输入卡密 获取卡密联系QQ: 1054636553');
+        chrome.runtime.sendMessage({ action: 'fromContent', title: '小梦-学习通助手', message: '请输入卡密 获取卡密联系QQ: 1054636553' });
+        const but_auto_answer = document.getElementById('but_auto_answer');
+        but_auto_answer.textContent = '自动答题';
+        but_auto_answer.style.backgroundColor = "#4CAF50";
+        isAnswering = false;
         return;
     }
 
@@ -28,85 +32,102 @@ async function answerQuestion() {
     const fetchPromises = [];
     const reportedErrors = new Set(); // 用于跟踪已报告的错误
 
-    questions.forEach((question) => {
-        const check_answer = question.querySelector('.check_answer');
-        const check_answer_dx = question.querySelector('.check_answer_dx');
-        if (check_answer || check_answer_dx) {
-            return true;
-        }
+    // 初始验证请求
+    const devUrl = 'http://localhost:5678/v2/question/query';
+    const prodUrl = 'https://api.sourcedream.cn/v2/question/query';
+    fetchController = new AbortController();
+    const signal = fetchController.signal;
 
-        const questionTextElement = question.querySelector('h3');
-        const questionText = questionTextElement.innerText.trim();
-        const title = questionText.slice(14);
-        const devUrl = 'http://localhost:5678/v2/question/query';
-        const prodUrl = 'https://api.sourcedream.cn/v2/question/query';
-        fetchController = new AbortController();
-        const signal = fetchController.signal;
-
-        const fetchPromise = fetch(prodUrl, {
+    try {
+        const initialResponse = await fetch(prodUrl, {
             method: 'POST',
             signal,
-            body: JSON.stringify({ title: title, key: key }),
+            body: JSON.stringify({ title: 'initial_check', key: key }),
             headers: {
                 'Content-Type': 'application/json'
             }
-        }).then(res => {
-            if (!res.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return res.json();
-        }).then(data => {
-            if (!data || data.code !== 1 || data.data.length === 0) {
-                return;
+        });
+        data = await initialResponse.json();
+
+        if (data.code === 401) {
+            throw new Error(data.message || '密钥错误，请检查您的密钥。如果无法答题 请联系QQ: 1054636553');
+        }
+
+        // 如果初始请求成功，继续处理其他问题
+        questions.forEach((question) => {
+            const check_answer = question.querySelector('.check_answer');
+            const check_answer_dx = question.querySelector('.check_answer_dx');
+            if (check_answer || check_answer_dx) {
+                return true;
             }
 
-            let flag = false;
-            data.data.some((data) => {
-                const answer = data.answer;
-                const answerArray = answer.split('');
-                let answerOptions = [];
-                data.options.forEach((option) => {
-                    if (answerArray.includes(option.slice(0, 1))) {
-                        answerOptions.push(option);
+            const questionTextElement = question.querySelector('h3');
+            const questionText = questionTextElement.innerText.trim();
+            const title = questionText.slice(14);
+
+            const fetchPromise = fetch(prodUrl, {
+                method: 'POST',
+                signal,
+                body: JSON.stringify({ title: title, key: key }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }).then(res => {
+                if (!res.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return res.json();
+            }).then(data => {
+                if (!data || data.code !== 1 || data.data.length === 0) {
+                    throw new Error(data.message || '未找到答案，请自行搜索或者使用手动搜题功能(暂不支持)或使用随机答题');
+                }
+                let flag = false;
+                data.data.some((data) => {
+                    const answer = data.answer;
+                    const answerArray = answer.split('');
+                    let answerOptions = [];
+                    data.options.forEach((option) => {
+                        if (answerArray.includes(option.slice(0, 1))) {
+                            answerOptions.push(option);
+                        }
+                    });
+
+                    const optionTextElements = question.querySelectorAll('.answerBg');
+                    optionTextElements.forEach((optionTextElement) => {
+                        let optionText = optionTextElement.innerText.trim();
+                        optionText = optionText.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
+                        answerOptions.forEach((answerOption) => {
+                            answerOption = answerOption.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
+                            if (compare(optionText, answerOption) === 1) {
+                                optionTextElement.click();
+                                flag = true;
+                                return;
+                            }
+                        });
+                    });
+
+                    if (flag === true) {
+                        return flag;
                     }
                 });
 
-                const optionTextElements = question.querySelectorAll('.answerBg');
-                optionTextElements.forEach((optionTextElement) => {
-                    let optionText = optionTextElement.innerText.trim();
-                    optionText = optionText.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
-                    answerOptions.forEach((answerOption) => {
-                        answerOption = answerOption.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
-                        if (compare(optionText, answerOption) === 1) {
-                            optionTextElement.click();
-                            flag = true;
-                            return;
-                        }
+                const remain = data.remain;
+                $('#cj_balance').text(remain);
+            }).catch(error => {
+                if (!reportedErrors.has(error.message)) {
+                    chrome.runtime.sendMessage({
+                        action: 'fromContent',
+                        title: '小梦-学习通助手',
+                        message: 'Error: ' + error.message + ' 如果无法答题 请联系QQ: 1054636553'
                     });
-                });
-
-                if (flag === true) {
-                    return flag;
+                    reportedErrors.add(error.message); // 记录已报告的错误
                 }
             });
 
-            const remain = data.remain;
-            $('#cj_balance').text(remain);
-        }).catch(error => {
-            if (!reportedErrors.has(error.message)) {
-                chrome.runtime.sendMessage({
-                    action: 'fromContent',
-                    title: '小梦-学习通助手',
-                    message: 'Error: ' + error.message + ' 如果无法答题 请联系QQ: 1054636553'
-                });
-                reportedErrors.add(error.message); // 记录已报告的错误
-            }
+            fetchPromises.push(fetchPromise);
         });
 
-        fetchPromises.push(fetchPromise);
-    });
-
-    Promise.all(fetchPromises).then(() => {
+        await Promise.all(fetchPromises);
         chrome.runtime.sendMessage({
             action: 'fromContent',
             title: '小梦-学习通助手',
@@ -118,7 +139,22 @@ async function answerQuestion() {
         but_auto_answer.textContent = '自动答题';
         but_auto_answer.style.backgroundColor = "#4CAF50";
         isAnswering = false;
-    });
+
+    } catch (error) {
+        if (!reportedErrors.has(error.message)) {
+            chrome.runtime.sendMessage({
+                action: 'fromContent',
+                title: '小梦-学习通助手',
+                message: 'Error: ' + error.message + ' 如果无法答题 请联系QQ: 1054636553'
+            });
+            reportedErrors.add(error.message); // 记录已报告的错误
+        }
+        // 复原按钮样式
+        const but_auto_answer = document.getElementById('but_auto_answer');
+        but_auto_answer.textContent = '自动答题';
+        but_auto_answer.style.backgroundColor = "#4CAF50";
+        isAnswering = false;
+    }
 }
 
 function clearQuestion() {
