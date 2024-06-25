@@ -16,33 +16,37 @@ function compare(a, b) {
 
 let fetchController;
 
-function answerQuestion() {
+async function answerQuestion() {
     const inp1 = document.getElementById('cj_inp1');
     const key = inp1.value;
-    if(!key) {
-        alert('请输入卡密 获取卡密联系QQ: 1054636553')
-        return
+    if (!key) {
+        alert('请输入卡密 获取卡密联系QQ: 1054636553');
+        return;
     }
-    const questions = document.querySelectorAll('.questionLi')
-    let alertExecuted = false;
+
+    const questions = document.querySelectorAll('.questionLi');
     const fetchPromises = [];
+    const reportedErrors = new Set(); // 用于跟踪已报告的错误
+
     questions.forEach((question) => {
-        const check_answer = question.querySelector('.check_answer')
-        const check_answer_dx = question.querySelector('.check_answer_dx')
-        if(check_answer || check_answer_dx) {
-            return true
+        const check_answer = question.querySelector('.check_answer');
+        const check_answer_dx = question.querySelector('.check_answer_dx');
+        if (check_answer || check_answer_dx) {
+            return true;
         }
+
         const questionTextElement = question.querySelector('h3');
         const questionText = questionTextElement.innerText.trim();
-        const match = questionText.slice(14)
-        const devUrl = 'http://localhost:5678/cdut/questionInquiry/';
-        const prodUrl = 'https://api.sourcedream.cn/cdut/questionInquiry/';
+        const title = questionText.slice(14);
+        const devUrl = 'http://localhost:5678/v2/question/query';
+        const prodUrl = 'https://api.sourcedream.cn/v2/question/query';
         fetchController = new AbortController();
         const signal = fetchController.signal;
+
         const fetchPromise = fetch(prodUrl, {
             method: 'POST',
             signal,
-            body: JSON.stringify({match: match, key: key}),
+            body: JSON.stringify({ title: title, key: key }),
             headers: {
                 'Content-Type': 'application/json'
             }
@@ -52,15 +56,10 @@ function answerQuestion() {
             }
             return res.json();
         }).then(data => {
-            if(!data){
+            if (!data || data.code !== 1 || data.data.length === 0) {
                 return;
             }
-            if (data.error) {
-                return;
-            }
-            if(data.data.length === 0) {
-                return;
-            }
+
             let flag = false;
             data.data.some((data) => {
                 const answer = data.answer;
@@ -71,41 +70,57 @@ function answerQuestion() {
                         answerOptions.push(option);
                     }
                 });
+
                 const optionTextElements = question.querySelectorAll('.answerBg');
                 optionTextElements.forEach((optionTextElement) => {
                     let optionText = optionTextElement.innerText.trim();
                     optionText = optionText.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
                     answerOptions.forEach((answerOption) => {
                         answerOption = answerOption.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
-                        if(compare(optionText, answerOption)===1) {
+                        if (compare(optionText, answerOption) === 1) {
                             optionTextElement.click();
                             flag = true;
                             return;
                         }
                     });
                 });
+
                 if (flag === true) {
                     return flag;
                 }
             });
+
             const remain = data.remain;
             $('#cj_balance').text(remain);
         }).catch(error => {
-            if (!alertExecuted) {
-                alert(error);
-                alertExecuted = true;
-                return
+            if (!reportedErrors.has(error.message)) {
+                chrome.runtime.sendMessage({
+                    action: 'fromContent',
+                    title: '小梦-学习通助手',
+                    message: 'Error: ' + error.message + ' 如果无法答题 请联系QQ: 1054636553'
+                });
+                reportedErrors.add(error.message); // 记录已报告的错误
             }
         });
+
         fetchPromises.push(fetchPromise);
-    })
-    Promise.all(fetchPromises).then(() => {
-        chrome.runtime.sendMessage({ action: 'fromContent', title: '小梦-学习通助手', message: '任务已完成!空白的内容是没有匹配到的题目，请自行搜索或者使用手动搜题功能(暂不支持)或使用随机答题' });
     });
-    $('cj_but1').text('自动答题');
-    $('cj_but1').css("background-color", "#4CAF50");
-    
+
+    Promise.all(fetchPromises).then(() => {
+        chrome.runtime.sendMessage({
+            action: 'fromContent',
+            title: '小梦-学习通助手',
+            message: '任务已完成!空白的内容是没有匹配到的题目，请自行搜索或者使用手动搜题功能(暂不支持)或使用随机答题'
+        });
+
+        // 复原按钮样式
+        const but_auto_answer = document.getElementById('but_auto_answer');
+        but_auto_answer.textContent = '自动答题';
+        but_auto_answer.style.backgroundColor = "#4CAF50";
+        isAnswering = false;
+    });
 }
+
 function clearQuestion() {
     const questions = document.querySelectorAll('.questionLi')
     questions.forEach((question) => {
@@ -123,56 +138,53 @@ function clearQuestion() {
 let isAnswering = false;
 
 function createPage() {
+    // 创建页面元素
     const page = $('<div id="cj_move_page"></div>');
     const h3 = $('<h1 id="cj_move_h1">小梦-学习通助手</h1>');
-    const but1 = $('<button id="cj_but1">自动答题</button>');
+    const but_auto_answer = $('<button id="but_auto_answer">自动答题</button>');
     const but2 = $('<button id="cj_but2">随机答题</button>');
     const but3 = $('<button id="cj_but3">智能答题</button>');
     const but4 = $('<button id="cj_but4">清空记录</button>');
-    const inp1 = $('<input id="cj_inp1" placeholder="请输入你的卡密"/>');
+    const inp1 = $('<input id="cj_inp1" placeholder="请输入你的key"/>');
     const lab1 = $('<label id="cj_lab1">卡密余额: <span id="cj_balance">开始答题后可见</span></label>');
-    page.append(h3);
-    page.append(but1);
-    page.append(but2);
-    page.append(but3);
-    page.append(but4);
-    page.append(inp1);
-    page.append(lab1);
+
+    // 将元素添加到页面
+    page.append(h3, but_auto_answer, but2, but3, but4, inp1, lab1);
     $('body').append(page);
-    
-    but1.on('click', async (e) => {
+
+    // 事件绑定
+    but_auto_answer.on('click', async (e) => {
         if (!isAnswering) {
-            but1.text('停止答题');
-            but1.css("background-color", "red");
+            but_auto_answer.text('停止答题').css("background-color", "red");
             answerQuestion();
         } else {
             if (fetchController) {
                 fetchController.abort();
                 fetchController = null;
             }
-            but1.text('自动答题');
-            but1.css("background-color", "#4CAF50");
+            but_auto_answer.text('自动答题').css("background-color", "#4CAF50");
         }
         isAnswering = !isAnswering;
     });
-    $('#cj_but2').click(async (e) => {
-        alert("暂时不支持");
-        
-    });
-    $('#cj_but3').click(async (e) => {
+
+    $('#cj_but2, #cj_but3').click((e) => {
         alert("暂时不支持");
     });
-    $('#cj_but4').click(async (e) => {
+
+    $('#cj_but4').click((e) => {
         clearQuestion();
-        chrome.runtime.sendMessage({action: 'fromContent', title: '小梦-学习通助手', message: '任务已完成'});
+        chrome.runtime.sendMessage({ action: 'fromContent', title: '小梦-学习通助手', message: '任务已完成' });
     });
+
+    // 设置样式
     page.css({
         "border-radius": "10px",
         "width": "232px",
         "height": "238px",
         "text-align": "center"
     });
-    but1.css({
+
+    const buttonStyle = {
         "margin": "10px",
         "background-color": "#4CAF50",
         "color": "white",
@@ -180,50 +192,29 @@ function createPage() {
         "border": "none",
         "border-radius": "5px",
         "cursor": "pointer",
-        "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)",
-    });
-    but2.css({
-        "margin": "10px",
-        "background-color": "#4CAF50",
-        "color": "white",
-        "padding": "10px 20px",
-        "border": "none",
-        "border-radius": "5px",
-        "cursor": "pointer",
-        "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)",
-    });
-    but3.css({
-        "margin": "10px",
-        "background-color": "#4CAF50",
-        "color": "white",
-        "padding": "10px 20px",
-        "border": "none",
-        "border-radius": "5px",
-        "cursor": "pointer",
-        "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)",
-    });
-    but4.css({
-        "margin": "10px",
-        "background-color": "#4CAF50",
-        "color": "white",
-        "padding": "10px 20px",
-        "border": "none",
-        "border-radius": "5px",
-        "cursor": "pointer",
-        "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)",
-    });
+        "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)"
+    };
+
+    but_auto_answer.css(buttonStyle);
+    but2.css(buttonStyle);
+    but3.css(buttonStyle);
+    but4.css(buttonStyle);
+
     inp1.css({
         "margin": "10px",
         "padding": "10px",
         "border-radius": "5px",
         "border": "1px solid #ccc",
         "width": "calc(100% - 22px)",
-        "box-sizing": "border-box",
+        "box-sizing": "border-box"
     });
+
     lab1.css({
         "margin": "10px",
-        "font-weight": "bold", 
+        "font-weight": "bold"
     });
+
+    // 启用拖动功能
     drag(document.getElementById('cj_move_page'));
 }
 

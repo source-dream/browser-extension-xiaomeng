@@ -1,6 +1,6 @@
 {
     "name": "小梦",
-    "version": "2024.5.10",
+    "version": "2024.5.16",
     "manifest_version": 3,
     "description": "源梦的小助手",
     "icons": {
@@ -10,15 +10,14 @@
         "128": "icons/ym128x128.png"
     },
     "permissions": [
-        "activeTab",
         "tabs",
-        "https://api.sourcedream.cn/*",
         "notifications",
         "storage"
     ],
     "host_permissions": [
-        ""
-      ],
+        "https://api.sourcedream.cn/*",
+        "https://mooc1.chaoxing.com/*"
+    ],
     "background": {
         "service_worker": "background/index.js",
         "type": "module"
