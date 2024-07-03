@@ -52,8 +52,6 @@ async function answerQuestion() {
         if (data.code === 401) {
             throw new Error(data.message || '密钥错误，请检查您的密钥。如果无法答题 请联系QQ: 1054636553');
         }
-
-        // 如果初始请求成功，继续处理其他问题
         questions.forEach((question) => {
             const check_answer = question.querySelector('.check_answer');
             const check_answer_dx = question.querySelector('.check_answer_dx');
@@ -63,8 +61,11 @@ async function answerQuestion() {
 
             const questionTextElement = question.querySelector('h3');
             const questionText = questionTextElement.innerText.trim();
-            const title = questionText.slice(14);
-
+            // 去除题目前缀 ^\d{1,2}\.
+            let title = questionText.replace(/^\d{1,2}\./, '');
+            // 去除题目中的空格
+            title = title.replace(/\s/g, "");
+            title = title.replace(/\(单选题\)/, "").replace(/\(多选题\)/, "");
             const fetchPromise = fetch(prodUrl, {
                 method: 'POST',
                 signal,
