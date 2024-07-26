@@ -16,7 +16,8 @@
     ],
     "host_permissions": [
         "https://api.sourcedream.cn/*",
-        "https://mooc1.chaoxing.com/*"
+        "https://mooc1.chaoxing.com/*",
+        "https://i.mi.com/*"
     ],
     "background": {
         "service_worker": "background/index.js",
@@ -24,7 +25,7 @@
     },
     "content_scripts": [  
         {
-            "matches": ["https://mooc1.chaoxing.com/*"],
+            "matches": ["https://mooc1.chaoxing.com/*", "https://i.mi.com/*"],
             "css": ["content/index.css"],
             "js": ["content/jquery.js", "content/index.js"]
         }

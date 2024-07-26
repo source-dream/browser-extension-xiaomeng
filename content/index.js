@@ -256,41 +256,30 @@ function createPage() {
 }
 
 function drag(ele) {
-  let oldX, oldY, newX, newY
-  ele.onmousedown = function (e) {
-    if (!cj_move_page.style.right && !cj_move_page.style.bottom) {
-      cj_move_page.style.right = 0
-      cj_move_page.style.bottom = 0
-    }
-    oldX = e.clientX
-    oldY = e.clientY
-    document.onmousemove = function (e) {
-      newX = e.clientX
-      newY = e.clientY
-      cj_move_page.style.right = parseInt(cj_move_page.style.right) - newX + oldX + 'px'
-      cj_move_page.style.bottom = parseInt(cj_move_page.style.bottom) - newY + oldY + 'px'
-      oldX = newX
-      oldY = newY
-    }
-    document.onmouseup = function () {
-      document.onmousemove = null
-      document.onmouseup = null
-    }
-  }
-}
-
-chrome.runtime.onMessage.addListener(async (message) => {
-    console.log('message', message)
-    if(message.action === "manageChaoXingPage") {
-        if(message.manageChaoXingPage) {
-            createPage()
-            console.log('createPage')
-        } else {
-            $('#cj_move_page').remove()
-            console.log('removePage')
+    let oldX, oldY, newX, newY
+    ele.onmousedown = function (e) {
+        if (!cj_move_page.style.right && !cj_move_page.style.bottom) {
+        cj_move_page.style.right = 0
+        cj_move_page.style.bottom = 0
+        }
+        oldX = e.clientX
+        oldY = e.clientY
+        document.onmousemove = function (e) {
+        newX = e.clientX
+        newY = e.clientY
+        cj_move_page.style.right = parseInt(cj_move_page.style.right) - newX + oldX + 'px'
+        cj_move_page.style.bottom = parseInt(cj_move_page.style.bottom) - newY + oldY + 'px'
+        oldX = newX
+        oldY = newY
+        }
+        document.onmouseup = function () {
+        document.onmousemove = null
+        document.onmouseup = null
         }
     }
-})
+}
+
+
 
 function init() {
     chrome.storage.sync.get('manageChaoXingPage', function(data) {
@@ -304,4 +293,153 @@ function init() {
 }
 init();
 
+// 监听来自popup的消息
+chrome.runtime.onMessage.addListener(async (message) => {
+    if(message.action === "manageChaoXingPage") {
+        if(message.manageChaoXingPage) {
+            createPage()
+            console.log('createPage')
+        } else {
+            $('#cj_move_page').remove()
+            console.log('removePage')
+        }
+    } else if (message.action === 'initXiaomiTool') {
+        initXiaomiTool(message.xiaomiToolStatus);
+    }
+})
+
+function initXiaomiTool(isDisplay) {
+    if (isDisplay) {
+        // 创建小米云服务助手页面
+        // 创建悬浮窗的HTML元素，并应用内联样式
+        const page = $(`
+            <div id="xiaomiToolPage" style="
+                width: 250px; 
+                height: 200px; 
+                background-color: #fff; 
+                border: 1px solid #ccc; 
+                position: fixed; 
+                top: 100px; 
+                left: 100px; 
+                z-index: 1000; 
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
+                border-radius: 8px; 
+                overflow: hidden;
+                user-select: none;">
+                <div style="
+                    background-color: #007BFF; 
+                    padding: 10px; 
+                    cursor: move; 
+                    color: white; 
+                    font-weight: bold; 
+                    text-align: center;">
+                    源梦小米云服务助手
+                </div>
+                <div style="
+                    display: flex; 
+                    justify-content: center; 
+                    align-items: center; 
+                    height: calc(100% - 40px);">
+                    <button id="myButton" style="
+                        padding: 10px 20px; 
+                        background-color: #007BFF; 
+                        color: white; 
+                        border: none; 
+                        border-radius: 5px; 
+                        cursor: pointer; 
+                        transition: background-color 0.3s;">
+                        开始一键下载
+                    </button>
+                </div>
+            </div>`);
+
+        // 将悬浮窗添加到页面中
+        $('body').append(page);
+
+        // 定义一个变量来存储setInterval的ID
+        let intervalId;
+
+        // 定义一个函数来执行点击操作
+        function clickElements() {
+            // 选择所有具有类名 'icon-download-AGmtM' 的元素
+            var downloadElements = document.getElementsByClassName('icon-download-AGmtM');
+            
+            // 检查是否找到了元素
+            if (downloadElements.length > 0) {
+                // 点击第一个找到的 'icon-download-AGmtM' 元素
+                downloadElements[0].click();
+                console.log('icon-download-AGmtM 元素已被点击');
+            } else {
+                console.log('未找到具有类名 "icon-download-AGmtM" 的元素');
+            }
+
+            // 选择所有具有类名 'ico-next-1RCGp' 的元素
+            var arrowElements = document.getElementsByClassName('ico-next-1RCGp');
+            
+            // 检查是否找到了元素
+            if (arrowElements.length > 0) {
+                // 点击第一个找到的 'ico-next-1RCGp' 元素
+                arrowElements[0].click();
+                console.log('ico-next-1RCGp 元素已被点击');
+            } else {
+                console.log('未找到具有类名 "ico-next-1RCGp" 的元素，停止执行');
+                // 停止执行并恢复按钮
+                clearInterval(intervalId);
+                resetButton();
+            }
+        }
+
+        // 定义一个函数来重置按钮
+        function resetButton() {
+            $('#myButton').css('background-color', '#007BFF').text('开始一键下载');
+        }
+
+        // 绑定按钮点击事件
+        $('#myButton').click(function() {
+            if ($('#myButton').text() === '开始一键下载') {
+                // 更改按钮颜色和文本
+                $('#myButton').css('background-color', 'red').text('执行中');
+                // 每隔3秒执行一次 clickElements 函数
+                intervalId = setInterval(clickElements, 3000);
+            } else {
+                // 停止执行并恢复按钮
+                clearInterval(intervalId);
+                resetButton();
+            }
+        });
+
+        // 实现悬浮窗全局拖动效果
+        let x, y, l, t;
+        let isDown = false;
+
+        // 在整个悬浮窗上绑定mousedown事件
+        page.mousedown(function(e) {
+            x = e.clientX;
+            y = e.clientY;
+            l = page.offset().left;
+            t = page.offset().top;
+            isDown = true;
+        });
+
+        $(document).mousemove(function(e) {
+            if (isDown) {
+                const nx = e.clientX - x + l;
+                const ny = e.clientY - y + t;
+                page.css({ left: nx + 'px', top: ny + 'px' });
+            }
+        });
+
+        $(document).mouseup(function() {
+            isDown = false;
+        });
+
+        // 在拖动过程中禁用文本选择
+        page.on('selectstart', function(e) {
+            e.preventDefault();
+        });
+    } else {
+        // 移除小米云服务助手页面
+        $('#xiaomiToolPage').remove();
+    }
+}
 
