@@ -310,12 +310,10 @@ chrome.runtime.onMessage.addListener(async (message) => {
 
 function initXiaomiTool(isDisplay) {
     if (isDisplay) {
-        // 创建小米云服务助手页面
-        // 创建悬浮窗的HTML元素，并应用内联样式
         const page = $(`
             <div id="xiaomiToolPage" style="
-                width: 250px; 
-                height: 200px; 
+                width: 280px; 
+                height: 400px; 
                 background-color: #fff; 
                 border: 1px solid #ccc; 
                 position: fixed; 
@@ -335,84 +333,215 @@ function initXiaomiTool(isDisplay) {
                     text-align: center;">
                     源梦小米云服务助手
                 </div>
-                <div style="
-                    display: flex; 
-                    justify-content: center; 
-                    align-items: center; 
-                    height: calc(100% - 40px);">
-                    <button id="myButton" style="
-                        padding: 10px 20px; 
-                        background-color: #007BFF; 
-                        color: white; 
-                        border: none; 
-                        border-radius: 5px; 
-                        cursor: pointer; 
-                        transition: background-color 0.3s;">
-                        开始一键下载
-                    </button>
+                <div style="padding: 10px;">
+                    <h3 style="margin-bottom: 10px;color: black;">方法一：定时下载</h3>
+                    <div style="
+                        display: flex; 
+                        flex-direction: column; 
+                        justify-content: center; 
+                        gap: 10px;">
+                        <input id="intervalInput" type="number" min="0" value="3000" style="
+                            padding: 10px; 
+                            border: 1px solid #ccc; 
+                            border-radius: 5px; 
+                            width: 100%; 
+                            text-align: center;
+                            font-size: 16px;">
+                        <span style="font-size: 14px; color: #666;">输入下载时间间隔（毫秒），0表示监听图片变化并立刻下载，适合少量图片，图片多会漏图片, 下太久网页还会崩....真服了</span>
+                        <button id="myButton1" style="
+                            padding: 10px 20px; 
+                            background-color: #007BFF; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 5px; 
+                            cursor: pointer; 
+                            transition: background-color 0.3s;">
+                            开始一键下载
+                        </button>
+                    </div>
+                </div>
+                <div style="padding: 10px;">
+                    <h3 style="margin-bottom: 10px;color: black;">方法二：预加载下载法</h3>
+                    <span style="font-size: 14px; color: #666;margin-bottom: 8px;">适合图片较多的情况，点击开始获取图片按钮，然后点击下一页，直到获取完所有图片，再点击下载全部图片，已弃用，原因是下载下来的是缩略图</span>
+                    <div style="
+                        display: flex; 
+                        flex-direction: column;
+                        justify-content: center; 
+                        gap: 10px;">
+                        <button id="startListeningButton" style="
+                            padding: 10px 20px; 
+                            background-color: #007BFF; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 5px; 
+                            cursor: pointer; 
+                            transition: background-color 0.3s;">开始获取图片</button>
+                        <div id="imageCount" style="font-size: 14px; color: #666;">图片数量: 0</div>
+                        <button id="downloadAllButton" style="
+                            padding: 10px 20px; 
+                            background-color: #007BFF; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 5px; 
+                            cursor: pointer; 
+                            transition: background-color 0.3s;display: none;">下载全部图片</button>
+                    </div>
                 </div>
             </div>`);
 
-        // 将悬浮窗添加到页面中
         $('body').append(page);
 
-        // 定义一个变量来存储setInterval的ID
         let intervalId;
+        let observer;
+        let timeoutId;
+        let lastSrc = '';
+        let isLastImage = false;
+        let imageSrcArray = []; // 用于存储图片链接
 
-        // 定义一个函数来执行点击操作
-        function clickElements() {
-            // 选择所有具有类名 'icon-download-AGmtM' 的元素
-            var downloadElements = document.getElementsByClassName('icon-download-AGmtM');
-            
-            // 检查是否找到了元素
+        // 点击下载元素
+        function clickDownloadElement() {
+            const downloadElements = document.getElementsByClassName('icon-download-AGmtM');
             if (downloadElements.length > 0) {
-                // 点击第一个找到的 'icon-download-AGmtM' 元素
                 downloadElements[0].click();
-                console.log('icon-download-AGmtM 元素已被点击');
             } else {
-                console.log('未找到具有类名 "icon-download-AGmtM" 的元素');
-            }
-
-            // 选择所有具有类名 'ico-next-1RCGp' 的元素
-            var arrowElements = document.getElementsByClassName('ico-next-1RCGp');
-            
-            // 检查是否找到了元素
-            if (arrowElements.length > 0) {
-                // 点击第一个找到的 'ico-next-1RCGp' 元素
-                arrowElements[0].click();
-                console.log('ico-next-1RCGp 元素已被点击');
-            } else {
-                console.log('未找到具有类名 "ico-next-1RCGp" 的元素，停止执行');
-                // 停止执行并恢复按钮
-                clearInterval(intervalId);
-                resetButton();
+                alert('请在详情预览界面使用此功能');
+                stopExecution();
+                return;
             }
         }
 
-        // 定义一个函数来重置按钮
+        // 点击下一页元素
+        function clickNextElement() {
+            const nextElements = document.getElementsByClassName('ico-next-1RCGp');
+            if (nextElements.length > 0) {
+                nextElements[0].click();
+            } else {
+                isLastImage = true;
+                stopExecution();
+            }
+        }
+        // 重置按钮
         function resetButton() {
-            $('#myButton').css('background-color', '#007BFF').text('开始一键下载');
+            $('#myButton1').css('background-color', '#007BFF').text('开始一键下载');
+        }
+        // 结束执行
+        function stopExecution() {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+            if (observer) {
+                observer.disconnect();
+            }
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            resetButton();
+            resetListenerButton();
         }
 
-        // 绑定按钮点击事件
-        $('#myButton').click(function() {
-            if ($('#myButton').text() === '开始一键下载') {
-                // 更改按钮颜色和文本
-                $('#myButton').css('background-color', 'red').text('执行中');
-                // 每隔3秒执行一次 clickElements 函数
-                intervalId = setInterval(clickElements, 3000);
+        $('#myButton1').click(function() {
+            if ($('#myButton1').text() === '开始一键下载') {
+                let interval = parseInt($('#intervalInput').val());
+
+                if (interval === 0) {
+                    const imgElement = document.querySelector('.img-3Ae3U');
+                    if (!imgElement) {
+                        alert('请在详情预览界面使用此功能');
+                        return;
+                    }
+                    observer = new MutationObserver((mutationsList) => {
+                        for (let mutation of mutationsList) {
+                            if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
+                                const newSrc = imgElement.getAttribute('src');
+                                if (newSrc !== lastSrc) {
+                                    lastSrc = newSrc;
+                                    isLastImage = false;
+                                    setTimeout(() => {
+                                        clickDownloadElement;
+                                        clickNextElement();
+                                    }, 200);
+                                    clearTimeout(timeoutId);
+                                    timeoutId = setTimeout(() => {
+                                        observer.disconnect();
+                                        alert('4秒内未检测到图片变化，结束执行');
+                                        resetButton();
+                                    }, 4000);
+                                }
+                            }
+                        }
+                    });
+                    observer.observe(imgElement, { attributes: true });
+                    imgElement.setAttribute('src', imgElement.getAttribute('src'));
+                    timeoutId = setTimeout(() => {
+                        observer.disconnect();
+                        alert('4秒内未检测到图片变化，结束执行');
+                        resetButton();
+                    }, 4000);
+                    $('#myButton1').css('background-color', 'red').text('执行中');
+                } else if (isNaN(interval) || interval < 0) {
+                    alert('请输入一个有效的时间间隔（最小为0毫秒）');
+                    return;
+                } else {
+                    $('#myButton1').css('background-color', 'red').text('执行中');
+                    intervalId = setInterval(() => {
+                        clickDownloadElement();
+                        clickNextElement();
+                    }, interval);
+                }
             } else {
-                // 停止执行并恢复按钮
-                clearInterval(intervalId);
-                resetButton();
+                stopExecution();
             }
         });
 
-        // 实现悬浮窗全局拖动效果
+        function resetListenerButton() {
+            $('#startListeningButton').css('background-color', '#007BFF').text('开始获取图片');
+            $('#imageCount').text('图片数量: ' + imageSrcArray.length);
+            if (imageSrcArray.length > 0) {
+                $('#downloadAllButton').show();
+            } else {
+                $('#downloadAllButton').hide();
+            }
+        }
+        // 开始获取图片按钮的点击事件
+        $('#startListeningButton').click(function() {
+            if ($('#startListeningButton').text() === '开始获取图片') {
+                const imgElement = document.querySelector('.img-3Ae3U');
+                if (!imgElement) {
+                    alert('请在详情预览界面使用此功能');
+                    return;
+                }
+                imageSrcArray = [];
+                // $('#imageCount').text('图片数量: ' + imageSrcArray.length);
+                // $('#downloadAllButton').hide();
+                observer = new MutationObserver((mutationsList) => {
+                    for (let mutation of mutationsList) {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
+                            const src = imgElement.getAttribute('src');
+                            imageSrcArray.push(src);
+                            $('#imageCount').text('图片数量: ' + imageSrcArray.length);
+                            clickNextElement();
+                        }
+                    }
+                });
+                observer.observe(imgElement, { attributes: true });
+                // 触发第一次监听
+                imgElement.setAttribute('src', imgElement.getAttribute('src'));
+                $('#startListeningButton').css('background-color', 'red').text('获取中');
+            } else if ($('#startListeningButton').text() === '获取中') {
+                stopExecution();
+                $('#startListeningButton').css('background-color', '#007BFF').text('继续获取');
+            }
+        });
+        // 下载全部图片按钮的点击事件
+        $('#downloadAllButton').click(function() {
+            // 传递图片链接给background
+            chrome.runtime.sendMessage({ action: 'downloadAllImages', images: imageSrcArray });
+            console.log('imageSrcArray', imageSrcArray);
+        });
+
         let x, y, l, t;
         let isDown = false;
 
-        // 在整个悬浮窗上绑定mousedown事件
         page.mousedown(function(e) {
             x = e.clientX;
             y = e.clientY;
@@ -433,13 +562,10 @@ function initXiaomiTool(isDisplay) {
             isDown = false;
         });
 
-        // 在拖动过程中禁用文本选择
         page.on('selectstart', function(e) {
             e.preventDefault();
         });
     } else {
-        // 移除小米云服务助手页面
         $('#xiaomiToolPage').remove();
     }
 }
-
