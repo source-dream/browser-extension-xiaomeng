@@ -1,6 +1,6 @@
 {
     "name": "小梦",
-    "version": "2024.7.28",
+    "version": "20240728",
     "manifest_version": 3,
     "description": "源梦的小助手",
     "icons": {
@@ -18,7 +18,8 @@
     "host_permissions": [
         "https://api.sourcedream.cn/*",
         "https://mooc1.chaoxing.com/*",
-        "https://i.mi.com/*"
+        "https://i.mi.com/*",
+        "http://jxpc-cdut-edu-cn.vpn.cdut.edu.cn:8118/*"
     ],
     "background": {
         "service_worker": "background/index.js",
@@ -26,7 +27,7 @@
     },
     "content_scripts": [  
         {
-            "matches": ["https://mooc1.chaoxing.com/*", "https://i.mi.com/*"],
+            "matches": ["https://mooc1.chaoxing.com/*", "https://i.mi.com/*", "http://jxpc-cdut-edu-cn.vpn.cdut.edu.cn:8118/*"],
             "css": ["content/index.css"],
             "js": ["content/jquery.js", "content/index.js"]
         }

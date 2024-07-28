@@ -305,6 +305,8 @@ chrome.runtime.onMessage.addListener(async (message) => {
         }
     } else if (message.action === 'initXiaomiTool') {
         initXiaomiTool(message.xiaomiToolStatus);
+    } else if (message.action === 'initCdutTool') {
+        initCdutTool(message.cdutToolStatus);
     }
 })
 
@@ -567,5 +569,112 @@ function initXiaomiTool(isDisplay) {
         });
     } else {
         $('#xiaomiToolPage').remove();
+    }
+}
+
+function initCdutTool(isDisplay) {
+    if (isDisplay) {
+        const page = $(`
+            <div id="cdutToolPage" style="
+                width: 280px; 
+                height: 400px; 
+                background-color: #fff; 
+                border: 1px solid #ccc; 
+                position: fixed; 
+                top: 100px; 
+                left: 100px; 
+                z-index: 1000; 
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
+                border-radius: 8px; 
+                overflow: hidden;
+                user-select: none;">
+                <div style="
+                    background-color: #007BFF; 
+                    padding: 10px; 
+                    cursor: move; 
+                    color: white; 
+                    font-weight: bold; 
+                    text-align: center;">
+                    CDUT助手
+                </div>
+                <div style="padding: 10px;">
+                    <h3 style="margin-bottom: 10px;color: black;">一键评教</h3>
+                    <input id="pingyu" type="text" min="0" value="老师讲的很好，认真负责" style="
+                    padding: 10px; 
+                    border: 1px solid #ccc; 
+                    border-radius: 5px; 
+                    width: 100%; 
+                    text-align: center;
+                    font-size: 16px;">
+                    <span style="font-size: 14px; color: #666;">这里可以修改评语</span>
+                    <div style="
+                        display: flex; 
+                        flex-direction: column; 
+                        justify-content: center; 
+                        gap: 10px;">
+                        <button id="start1" style="
+                            padding: 10px 20px; 
+                            background-color: #007BFF; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 5px; 
+                            cursor: pointer; 
+                            transition: background-color 0.3s;">开始一键评教</button>
+                    </div>
+                </div>
+            </div>`);
+
+        $('body').append(page);
+        // 重置按钮
+        function resetButton() {
+            $('#start1').css('background-color', '#007BFF').text('开始一键评教');
+        }
+        // 结束执行
+        function stopExecution() {
+            resetButton();
+        }
+        $('#start1').click(function() {
+            if ($('#start1').text() === '开始一键评教') {
+                $('#start1').css('background-color', 'red').text('执行中');
+                // 执行评教
+                try {
+                    document.querySelector('.el-textarea textarea.el-textarea__inner').value = parseInt($('#pingyu').val())
+                    document.querySelector('.el-textarea textarea.el-textarea__inner').dispatchEvent(new Event('input', { bubbles: true }));
+                    document.querySelectorAll('.rater_input').forEach(input => {
+                        input.value = 10;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    });
+                } catch (e) {
+                    console.error(e);
+                }
+                resetButton();
+            } else {
+                stopExecution();
+            }
+        });
+        let x, y, l, t;
+        let isDown = false;
+        page.mousedown(function(e) {
+            x = e.clientX;
+            y = e.clientY;
+            l = page.offset().left;
+            t = page.offset().top;
+            isDown = true;
+        });
+        $(document).mousemove(function(e) {
+            if (isDown) {
+                const nx = e.clientX - x + l;
+                const ny = e.clientY - y + t;
+                page.css({ left: nx + 'px', top: ny + 'px' });
+            }
+        });
+        $(document).mouseup(function() {
+            isDown = false;
+        });
+        page.on('selectstart', function(e) {
+            e.preventDefault();
+        });
+    } else {
+        $('#cdutToolPage').remove();
     }
 }

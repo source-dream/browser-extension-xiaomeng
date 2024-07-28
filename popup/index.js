@@ -44,6 +44,27 @@ xiaomi_tool_status.onclick = async function() {
         });
     }
 }
+cdut_tool_status.onclick = async function() {
+    // 判断当前页面是否为成都理工大学页面
+    const [tab] = await chrome.tabs.query({
+        url: ["http://jxpc-cdut-edu-cn.vpn.cdut.edu.cn:8118/*"],
+        active: true,
+        currentWindow: true
+    });
+    if (tab) {
+        chrome.tabs.sendMessage(tab.id, {
+            action: 'initCdutTool',
+            cdutToolStatus: cdut_tool_status.checked
+        })
+    } else {
+        chrome.notifications.create({
+            type: "basic",
+            title: "小梦",
+            message: "该网页不支持成都理工大学助手功能！",
+            iconUrl: "../icons/ym128x128.png"
+        });
+    }
+}
 
 // function init() {
 //     const checkbox = document.getElementById('start_answer_but');
