@@ -33,7 +33,6 @@ async function answerQuestion() {
     const reportedErrors = new Set(); // 用于跟踪已报告的错误
 
     // 初始验证请求
-    const devUrl = 'http://localhost:5678/v2/question/query';
     const prodUrl = 'https://api.sourcedream.cn/v2/question/query';
     fetchController = new AbortController();
     const signal = fetchController.signal;
@@ -175,22 +174,82 @@ function clearQuestion() {
 let isAnswering = false;
 
 function createPage() {
-    // 创建页面元素
-    const page = $('<div id="cj_move_page"></div>');
-    const h3 = $('<h1 id="cj_move_h1">小梦-学习通助手</h1>');
-    const but_auto_answer = $('<button id="but_auto_answer">自动答题</button>');
-    const but2 = $('<button id="cj_but2">随机答题</button>');
-    const but3 = $('<button id="cj_but3">智能答题</button>');
-    const but4 = $('<button id="cj_but4">清空记录</button>');
-    const inp1 = $('<input id="cj_inp1" placeholder="请输入你的key"/>');
-    const lab1 = $('<label id="cj_lab1">卡密余额: <span id="cj_balance">开始答题后可见</span></label>');
-
-    // 将元素添加到页面
-    page.append(h3, but_auto_answer, but2, but3, but4, inp1, lab1);
+    const page = $(`
+        <div id="cj_move_page" style="
+            border-radius: 10px; 
+            width: 232px; 
+            height: 238px; 
+            text-align: center;
+            background-color: #fff; 
+            border: 1px solid #ccc; 
+            position: fixed; 
+            top: 100px; 
+            left: 100px; 
+            z-index: 1000; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
+            overflow: hidden;">
+            <h1 id="cj_move_h1">小梦-学习通助手</h1>
+            <button id="but_auto_answer" style="
+                margin: 10px; 
+                background-color: #4CAF50; 
+                color: white; 
+                padding: 10px 20px; 
+                border: none; 
+                border-radius: 5px; 
+                cursor: pointer; 
+                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
+                自动答题
+            </button>
+            <button id="cj_but2" style="
+                margin: 10px; 
+                background-color: #4CAF50; 
+                color: white; 
+                padding: 10px 20px; 
+                border: none; 
+                border-radius: 5px; 
+                cursor: pointer; 
+                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
+                随机答题
+            </button>
+            <button id="cj_but3" style="
+                margin: 10px; 
+                background-color: #4CAF50; 
+                color: white; 
+                padding: 10px 20px; 
+                border: none; 
+                border-radius: 5px; 
+                cursor: pointer; 
+                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
+                智能答题
+            </button>
+            <button id="cj_but4" style="
+                margin: 10px; 
+                background-color: #4CAF50; 
+                color: white; 
+                padding: 10px 20px; 
+                border: none; 
+                border-radius: 5px; 
+                cursor: pointer; 
+                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
+                清空记录
+            </button>
+            <input id="cj_inp1" placeholder="请输入你的key" style="
+                margin: 10px; 
+                padding: 10px; 
+                border-radius: 5px; 
+                border: 1px solid #ccc; 
+                width: calc(100% - 22px); 
+                box-sizing: border-box;">
+            <label id="cj_lab1" style="
+                margin: 10px; 
+                font-weight: bold;">
+                卡密余额: <span id="cj_balance">开始答题后可见</span>
+            </label>
+        </div>
+    `);
     $('body').append(page);
-
-    // 事件绑定
-    but_auto_answer.on('click', async (e) => {
+    $('#but_auto_answer').on('click', async function() {
+        const but_auto_answer = $(this);
         if (!isAnswering) {
             but_auto_answer.text('停止答题').css("background-color", "red");
             answerQuestion();
@@ -203,57 +262,16 @@ function createPage() {
         }
         isAnswering = !isAnswering;
     });
-
-    $('#cj_but2, #cj_but3').click((e) => {
+    $('#cj_but2, #cj_but3').click(function() {
         alert("暂时不支持");
     });
-
-    $('#cj_but4').click((e) => {
+    $('#cj_but4').click(function() {
         clearQuestion();
         chrome.runtime.sendMessage({ action: 'fromContent', title: '小梦-学习通助手', message: '任务已完成' });
     });
-
-    // 设置样式
-    page.css({
-        "border-radius": "10px",
-        "width": "232px",
-        "height": "238px",
-        "text-align": "center"
-    });
-
-    const buttonStyle = {
-        "margin": "10px",
-        "background-color": "#4CAF50",
-        "color": "white",
-        "padding": "10px 20px",
-        "border": "none",
-        "border-radius": "5px",
-        "cursor": "pointer",
-        "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)"
-    };
-
-    but_auto_answer.css(buttonStyle);
-    but2.css(buttonStyle);
-    but3.css(buttonStyle);
-    but4.css(buttonStyle);
-
-    inp1.css({
-        "margin": "10px",
-        "padding": "10px",
-        "border-radius": "5px",
-        "border": "1px solid #ccc",
-        "width": "calc(100% - 22px)",
-        "box-sizing": "border-box"
-    });
-
-    lab1.css({
-        "margin": "10px",
-        "font-weight": "bold"
-    });
-
-    // 启用拖动功能
     drag(document.getElementById('cj_move_page'));
 }
+
 
 function drag(ele) {
     let oldX, oldY, newX, newY
@@ -291,17 +309,15 @@ function init() {
         }
     });
 }
+
 init();
 
-// 监听来自popup的消息
 chrome.runtime.onMessage.addListener(async (message) => {
     if(message.action === "manageChaoXingPage") {
         if(message.manageChaoXingPage) {
             createPage()
-            console.log('createPage')
         } else {
             $('#cj_move_page').remove()
-            console.log('removePage')
         }
     } else if (message.action === 'initXiaomiTool') {
         initXiaomiTool(message.xiaomiToolStatus);
