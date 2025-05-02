@@ -33,11 +33,5 @@
     ],
     "action": {
         "default_popup": "popup/index.html"
-    },
-    "web_accessible_resources": [
-        {
-            "resources": ["content/index.html"],
-            "matches": ["<all_urls>"]
-        }
-    ]
+    }
 }

@@ -14,6 +14,12 @@ chaoxing_tool_status.onclick = async function () {
             action: "initChaoXingAction",
             active: chaoxing_tool_status.checked,
         });
+        chrome.storage.sync.set(
+            { initChaoXingAction: { active: chaoxing_tool_status.checked } },
+            function () {
+                console.log("状态已保存！");
+            }
+        );
     } else {
         chrome.notifications.create({
             type: "basic",
@@ -68,3 +74,28 @@ cdut_tool_status.onclick = async function () {
         });
     }
 };
+
+function init() {
+    chrome.storage.sync.get("initChaoXingAction", function (data) {
+        if (data.initChaoXingAction) {
+            chaoxing_tool_status.checked = data.initChaoXingAction.active;
+        } else {
+            chaoxing_tool_status.checked = false;
+        }
+    });
+    chrome.storage.sync.get("xiaomiToolStatus", function (data) {
+        if (data.xiaomiToolStatus) {
+            xiaomi_tool_status.checked = data.xiaomiToolStatus.active;
+        } else {
+            xiaomi_tool_status.checked = false;
+        }
+    });
+    chrome.storage.sync.get("cdutToolStatus", function (data) {
+        if (data.cdutToolStatus) {
+            cdut_tool_status.checked = data.cdutToolStatus.active;
+        } else {
+            cdut_tool_status.checked = false;
+        }
+    });
+}
+init();

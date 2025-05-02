@@ -1,4 +1,5 @@
 let fetchController;
+let isAnswering = false;
 
 /**
  * 相似度比较
@@ -201,72 +202,156 @@ function clearQuestion() {
     });
 }
 
-let isAnswering = false;
-
 /**
  * 初始化学习通答题助手
  */
 function initChaoXing() {
-    fetch(chrome.runtime.getURL("content/index.html"))
-        .then((response) => response.text())
-        .then((html) => {
-            const page = $(html);
-            $("body").append(page);
-            $("#but_auto_answer").on("click", async function () {
-                const but_auto_answer = $(this);
-                if (!isAnswering) {
-                    but_auto_answer
-                        .text("停止答题")
-                        .css("background-color", "red");
-                    answerQuestion();
-                } else {
-                    if (fetchController) {
-                        fetchController.abort();
-                        fetchController = null;
-                    }
-                    but_auto_answer
-                        .text("自动答题")
-                        .css("background-color", "#4CAF50");
-                }
-                isAnswering = !isAnswering;
-            });
-            $("#cj_but2, #cj_but3").click(function () {
-                alert("暂时不支持");
-            });
-            $("#cj_but4").click(function () {
-                clearQuestion();
-                chrome.runtime.sendMessage({
-                    action: "fromContent",
-                    title: "小梦-学习通助手",
-                    message: "任务已完成",
-                });
-            });
-            drag(document.getElementById("cj_move_page"));
-        })
-        .catch((error) => {
-            console.error("Error loading HTML:", error);
+    const page = $(`
+        <div
+    id="cj_move_page"
+    style="
+        border-radius: 10px;
+        width: 232px;
+        height: 238px;
+        text-align: center;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        position: fixed;
+        top: 100px;
+        left: 100px;
+        z-index: 1000;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+    "
+>
+    <h1 id="cj_move_h1">小梦-学习通助手</h1>
+    <button
+        id="but_auto_answer"
+        style="
+            margin: 10px;
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+        "
+    >
+        自动答题
+    </button>
+    <button
+        id="cj_but2"
+        style="
+            margin: 10px;
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+        "
+    >
+        随机答题
+    </button>
+    <button
+        id="cj_but3"
+        style="
+            margin: 10px;
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+        "
+    >
+        智能答题
+    </button>
+    <button
+        id="cj_but4"
+        style="
+            margin: 10px;
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+        "
+    >
+        清空记录
+    </button>
+    <input
+        id="cj_inp1"
+        placeholder="请输入你的key"
+        style="
+            margin: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: calc(100% - 22px);
+            box-sizing: border-box;
+        "
+    />
+    <label id="cj_lab1" style="margin: 10px; font-weight: bold">
+        卡密余额: <span id="cj_balance">开始答题后可见</span>
+    </label>
+</div>
+
+        `);
+    $("body").append(page);
+    $("#but_auto_answer").on("click", async function () {
+        const but_auto_answer = $(this);
+        if (!isAnswering) {
+            but_auto_answer.text("停止答题").css("background-color", "red");
+            answerQuestion();
+        } else {
+            if (fetchController) {
+                fetchController.abort();
+                fetchController = null;
+            }
+            but_auto_answer.text("自动答题").css("background-color", "#4CAF50");
+        }
+        isAnswering = !isAnswering;
+    });
+    $("#cj_but2, #cj_but3").click(function () {
+        alert("暂时不支持");
+    });
+    $("#cj_but4").click(function () {
+        clearQuestion();
+        chrome.runtime.sendMessage({
+            action: "fromContent",
+            title: "小梦-学习通助手",
+            message: "任务已完成",
         });
+    });
+    drag(document.getElementById("cj_move_page"));
 }
 
 function drag(ele) {
     let oldX, oldY, newX, newY;
     ele.onmousedown = function (e) {
-        if (!cj_move_page.style.right && !cj_move_page.style.bottom) {
-            cj_move_page.style.right = 0;
-            cj_move_page.style.bottom = 0;
-        }
         oldX = e.clientX;
         oldY = e.clientY;
+
+        const rect = ele.getBoundingClientRect();
+        let startLeft = rect.left;
+        let startTop = rect.top;
+
         document.onmousemove = function (e) {
             newX = e.clientX;
             newY = e.clientY;
-            cj_move_page.style.right =
-                parseInt(cj_move_page.style.right) - newX + oldX + "px";
-            cj_move_page.style.bottom =
-                parseInt(cj_move_page.style.bottom) - newY + oldY + "px";
-            oldX = newX;
-            oldY = newY;
+            const deltaX = newX - oldX;
+            const deltaY = newY - oldY;
+
+            ele.style.left = startLeft + deltaX + "px";
+            ele.style.top = startTop + deltaY + "px";
         };
+
         document.onmouseup = function () {
             document.onmousemove = null;
             document.onmouseup = null;
@@ -278,31 +363,31 @@ function drag(ele) {
  * 读取历史配置并初始化
  */
 function init() {
+    console.log("xiaomeng: content init");
     chrome.storage.sync.get("initChaoXingAction", function (data) {
-        if (data.active) {
+        if (data.initChaoXingAction.active) {
+            console.log("xiaomeng: chaoxing init");
             initChaoXing();
         } else {
             $("#cj_move_page").remove();
         }
     });
-}
 
-/**
- * 处理popup模块的消息
- */
-chrome.runtime.onMessage.addListener(async (message) => {
-    if (message.action === "initChaoXingAction") {
-        if (message.active) {
-            initChaoXing();
-        } else {
-            $("#cj_move_page").remove();
+    // 处理popup模块的消息
+    chrome.runtime.onMessage.addListener((message) => {
+        if (message.action === "initChaoXingAction") {
+            if (message.active) {
+                initChaoXing();
+            } else {
+                $("#cj_move_page").remove();
+            }
+        } else if (message.action === "initXiaomiTool") {
+            initXiaomiTool(message.xiaomiToolStatus);
+        } else if (message.action === "initCdutTool") {
+            initCdutTool(message.cdutToolStatus);
         }
-    } else if (message.action === "initXiaomiTool") {
-        initXiaomiTool(message.xiaomiToolStatus);
-    } else if (message.action === "initCdutTool") {
-        initCdutTool(message.cdutToolStatus);
-    }
-});
+    });
+}
 
 function initXiaomiTool(isDisplay) {
     if (isDisplay) {
