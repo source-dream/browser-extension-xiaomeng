@@ -1,6 +1,10 @@
+let fetchController;
 
+/**
+ * 相似度比较
+ */
 function compare(a, b) {
-    const split1 = a.split('');
+    const split1 = a.split("");
     let count = 0;
     split1.forEach((item) => {
         if (b.includes(item)) {
@@ -14,157 +18,183 @@ function compare(a, b) {
     return count / maxLength;
 }
 
-let fetchController;
-
 async function answerQuestion() {
-    const inp1 = document.getElementById('cj_inp1');
+    const inp1 = document.getElementById("cj_inp1");
     const key = inp1.value;
     if (!key) {
-        chrome.runtime.sendMessage({ action: 'fromContent', title: '小梦-学习通助手', message: '请输入卡密 获取卡密联系QQ: 1054636553' });
-        const but_auto_answer = document.getElementById('but_auto_answer');
-        but_auto_answer.textContent = '自动答题';
+        chrome.runtime.sendMessage({
+            action: "fromContent",
+            title: "小梦-学习通助手",
+            message: "请输入卡密 获取卡密联系QQ: 1054636553",
+        });
+        const but_auto_answer = document.getElementById("but_auto_answer");
+        but_auto_answer.textContent = "自动答题";
         but_auto_answer.style.backgroundColor = "#4CAF50";
         isAnswering = false;
         return;
     }
 
-    const questions = document.querySelectorAll('.questionLi');
+    const questions = document.querySelectorAll(".questionLi");
     const fetchPromises = [];
     const reportedErrors = new Set(); // 用于跟踪已报告的错误
 
     // 初始验证请求
-    const prodUrl = 'https://api.sourcedream.cn/v2/question/query';
+    const prodUrl = "https://api.sourcedream.cn/v2/question/query";
     fetchController = new AbortController();
     const signal = fetchController.signal;
 
     try {
         const initialResponse = await fetch(prodUrl, {
-            method: 'POST',
+            method: "POST",
             signal,
-            body: JSON.stringify({ title: 'initial_check', key: key }),
+            body: JSON.stringify({ title: "initial_check", key: key }),
             headers: {
-                'Content-Type': 'application/json'
-            }
+                "Content-Type": "application/json",
+            },
         });
         data = await initialResponse.json();
 
         if (data.code === 401) {
-            throw new Error(data.message || '密钥错误，请检查您的密钥。如果无法答题 请联系QQ: 1054636553');
+            throw new Error(
+                data.message ||
+                    "密钥错误，请检查您的密钥。如果无法答题 请联系QQ: 1054636553"
+            );
         }
         questions.forEach((question) => {
-            const check_answer = question.querySelector('.check_answer');
-            const check_answer_dx = question.querySelector('.check_answer_dx');
+            const check_answer = question.querySelector(".check_answer");
+            const check_answer_dx = question.querySelector(".check_answer_dx");
             if (check_answer || check_answer_dx) {
                 return true;
             }
 
-            const questionTextElement = question.querySelector('h3');
+            const questionTextElement = question.querySelector("h3");
             const questionText = questionTextElement.innerText.trim();
             // 去除题目前缀 ^\d{1,2}\.
-            let title = questionText.replace(/^\d{1,2}\./, '');
+            let title = questionText.replace(/^\d{1,2}\./, "");
             // 去除题目中的空格
             title = title.replace(/\s/g, "");
             title = title.replace(/\(单选题\)/, "").replace(/\(多选题\)/, "");
             const fetchPromise = fetch(prodUrl, {
-                method: 'POST',
+                method: "POST",
                 signal,
                 body: JSON.stringify({ title: title, key: key }),
                 headers: {
-                    'Content-Type': 'application/json'
-                }
-            }).then(res => {
-                if (!res.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return res.json();
-            }).then(data => {
-                if (!data || data.code !== 1 || data.data.length === 0) {
-                    throw new Error(data.message || '未找到答案，请自行搜索或者使用手动搜题功能(暂不支持)或使用随机答题');
-                }
-                let flag = false;
-                data.data.some((data) => {
-                    const answer = data.answer;
-                    const answerArray = answer.split('');
-                    let answerOptions = [];
-                    data.options.forEach((option) => {
-                        if (answerArray.includes(option.slice(0, 1))) {
-                            answerOptions.push(option);
+                    "Content-Type": "application/json",
+                },
+            })
+                .then((res) => {
+                    if (!res.ok) {
+                        throw new Error("Network response was not ok");
+                    }
+                    return res.json();
+                })
+                .then((data) => {
+                    if (!data || data.code !== 1 || data.data.length === 0) {
+                        throw new Error(
+                            data.message ||
+                                "未找到答案，请自行搜索或者使用手动搜题功能(暂不支持)或使用随机答题"
+                        );
+                    }
+                    let flag = false;
+                    data.data.some((data) => {
+                        const answer = data.answer;
+                        const answerArray = answer.split("");
+                        let answerOptions = [];
+                        data.options.forEach((option) => {
+                            if (answerArray.includes(option.slice(0, 1))) {
+                                answerOptions.push(option);
+                            }
+                        });
+
+                        const optionTextElements =
+                            question.querySelectorAll(".answerBg");
+                        optionTextElements.forEach((optionTextElement) => {
+                            let optionText = optionTextElement.innerText.trim();
+                            optionText = optionText
+                                .replace(/\s/g, "")
+                                .replace(/[A-Z]/g, "")
+                                .replace(/\./g, "");
+                            answerOptions.forEach((answerOption) => {
+                                answerOption = answerOption
+                                    .replace(/\s/g, "")
+                                    .replace(/[A-Z]/g, "")
+                                    .replace(/\./g, "");
+                                if (compare(optionText, answerOption) === 1) {
+                                    optionTextElement.click();
+                                    flag = true;
+                                    return;
+                                }
+                            });
+                        });
+
+                        if (flag === true) {
+                            return flag;
                         }
                     });
 
-                    const optionTextElements = question.querySelectorAll('.answerBg');
-                    optionTextElements.forEach((optionTextElement) => {
-                        let optionText = optionTextElement.innerText.trim();
-                        optionText = optionText.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
-                        answerOptions.forEach((answerOption) => {
-                            answerOption = answerOption.replace(/\s/g, "").replace(/[A-Z]/g, "").replace(/\./g, "");
-                            if (compare(optionText, answerOption) === 1) {
-                                optionTextElement.click();
-                                flag = true;
-                                return;
-                            }
+                    const remain = data.remain;
+                    $("#cj_balance").text(remain);
+                })
+                .catch((error) => {
+                    if (!reportedErrors.has(error.message)) {
+                        chrome.runtime.sendMessage({
+                            action: "fromContent",
+                            title: "小梦-学习通助手",
+                            message:
+                                "Error: " +
+                                error.message +
+                                " 如果无法答题 请联系QQ: 1054636553",
                         });
-                    });
-
-                    if (flag === true) {
-                        return flag;
+                        reportedErrors.add(error.message); // 记录已报告的错误
                     }
                 });
-
-                const remain = data.remain;
-                $('#cj_balance').text(remain);
-            }).catch(error => {
-                if (!reportedErrors.has(error.message)) {
-                    chrome.runtime.sendMessage({
-                        action: 'fromContent',
-                        title: '小梦-学习通助手',
-                        message: 'Error: ' + error.message + ' 如果无法答题 请联系QQ: 1054636553'
-                    });
-                    reportedErrors.add(error.message); // 记录已报告的错误
-                }
-            });
 
             fetchPromises.push(fetchPromise);
         });
 
         await Promise.all(fetchPromises);
         chrome.runtime.sendMessage({
-            action: 'fromContent',
-            title: '小梦-学习通助手',
-            message: '任务已完成!空白的内容是没有匹配到的题目，请自行搜索或者使用手动搜题功能(暂不支持)或使用随机答题'
+            action: "fromContent",
+            title: "小梦-学习通助手",
+            message:
+                "任务已完成!空白的内容是没有匹配到的题目，请自行搜索或者使用手动搜题功能(暂不支持)或使用随机答题",
         });
 
         // 复原按钮样式
-        const but_auto_answer = document.getElementById('but_auto_answer');
-        but_auto_answer.textContent = '自动答题';
+        const but_auto_answer = document.getElementById("but_auto_answer");
+        but_auto_answer.textContent = "自动答题";
         but_auto_answer.style.backgroundColor = "#4CAF50";
         isAnswering = false;
-
     } catch (error) {
         if (!reportedErrors.has(error.message)) {
             chrome.runtime.sendMessage({
-                action: 'fromContent',
-                title: '小梦-学习通助手',
-                message: 'Error: ' + error.message + ' 如果无法答题 请联系QQ: 1054636553'
+                action: "fromContent",
+                title: "小梦-学习通助手",
+                message:
+                    "Error: " +
+                    error.message +
+                    " 如果无法答题 请联系QQ: 1054636553",
             });
             reportedErrors.add(error.message); // 记录已报告的错误
         }
         // 复原按钮样式
-        const but_auto_answer = document.getElementById('but_auto_answer');
-        but_auto_answer.textContent = '自动答题';
+        const but_auto_answer = document.getElementById("but_auto_answer");
+        but_auto_answer.textContent = "自动答题";
         but_auto_answer.style.backgroundColor = "#4CAF50";
         isAnswering = false;
     }
 }
 
 function clearQuestion() {
-    const questions = document.querySelectorAll('.questionLi')
+    const questions = document.querySelectorAll(".questionLi");
     questions.forEach((question) => {
-        const optionTextElements = question.querySelectorAll('.answerBg');
+        const optionTextElements = question.querySelectorAll(".answerBg");
         optionTextElements.forEach((optionTextElement) => {
-            const check_answer = optionTextElement.querySelector('.check_answer')
-            const check_answer_dx = optionTextElement.querySelector('.check_answer_dx')
-            if(check_answer || check_answer_dx) {
+            const check_answer =
+                optionTextElement.querySelector(".check_answer");
+            const check_answer_dx =
+                optionTextElement.querySelector(".check_answer_dx");
+            if (check_answer || check_answer_dx) {
                 optionTextElement.click();
             }
         });
@@ -173,158 +203,106 @@ function clearQuestion() {
 
 let isAnswering = false;
 
-function createPage() {
-    const page = $(`
-        <div id="cj_move_page" style="
-            border-radius: 10px; 
-            width: 232px; 
-            height: 238px; 
-            text-align: center;
-            background-color: #fff; 
-            border: 1px solid #ccc; 
-            position: fixed; 
-            top: 100px; 
-            left: 100px; 
-            z-index: 1000; 
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
-            overflow: hidden;">
-            <h1 id="cj_move_h1">小梦-学习通助手</h1>
-            <button id="but_auto_answer" style="
-                margin: 10px; 
-                background-color: #4CAF50; 
-                color: white; 
-                padding: 10px 20px; 
-                border: none; 
-                border-radius: 5px; 
-                cursor: pointer; 
-                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
-                自动答题
-            </button>
-            <button id="cj_but2" style="
-                margin: 10px; 
-                background-color: #4CAF50; 
-                color: white; 
-                padding: 10px 20px; 
-                border: none; 
-                border-radius: 5px; 
-                cursor: pointer; 
-                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
-                随机答题
-            </button>
-            <button id="cj_but3" style="
-                margin: 10px; 
-                background-color: #4CAF50; 
-                color: white; 
-                padding: 10px 20px; 
-                border: none; 
-                border-radius: 5px; 
-                cursor: pointer; 
-                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
-                智能答题
-            </button>
-            <button id="cj_but4" style="
-                margin: 10px; 
-                background-color: #4CAF50; 
-                color: white; 
-                padding: 10px 20px; 
-                border: none; 
-                border-radius: 5px; 
-                cursor: pointer; 
-                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
-                清空记录
-            </button>
-            <input id="cj_inp1" placeholder="请输入你的key" style="
-                margin: 10px; 
-                padding: 10px; 
-                border-radius: 5px; 
-                border: 1px solid #ccc; 
-                width: calc(100% - 22px); 
-                box-sizing: border-box;">
-            <label id="cj_lab1" style="
-                margin: 10px; 
-                font-weight: bold;">
-                卡密余额: <span id="cj_balance">开始答题后可见</span>
-            </label>
-        </div>
-    `);
-    $('body').append(page);
-    $('#but_auto_answer').on('click', async function() {
-        const but_auto_answer = $(this);
-        if (!isAnswering) {
-            but_auto_answer.text('停止答题').css("background-color", "red");
-            answerQuestion();
-        } else {
-            if (fetchController) {
-                fetchController.abort();
-                fetchController = null;
-            }
-            but_auto_answer.text('自动答题').css("background-color", "#4CAF50");
-        }
-        isAnswering = !isAnswering;
-    });
-    $('#cj_but2, #cj_but3').click(function() {
-        alert("暂时不支持");
-    });
-    $('#cj_but4').click(function() {
-        clearQuestion();
-        chrome.runtime.sendMessage({ action: 'fromContent', title: '小梦-学习通助手', message: '任务已完成' });
-    });
-    drag(document.getElementById('cj_move_page'));
+/**
+ * 初始化学习通答题助手
+ */
+function initChaoXing() {
+    fetch(chrome.runtime.getURL("content/index.html"))
+        .then((response) => response.text())
+        .then((html) => {
+            const page = $(html);
+            $("body").append(page);
+            $("#but_auto_answer").on("click", async function () {
+                const but_auto_answer = $(this);
+                if (!isAnswering) {
+                    but_auto_answer
+                        .text("停止答题")
+                        .css("background-color", "red");
+                    answerQuestion();
+                } else {
+                    if (fetchController) {
+                        fetchController.abort();
+                        fetchController = null;
+                    }
+                    but_auto_answer
+                        .text("自动答题")
+                        .css("background-color", "#4CAF50");
+                }
+                isAnswering = !isAnswering;
+            });
+            $("#cj_but2, #cj_but3").click(function () {
+                alert("暂时不支持");
+            });
+            $("#cj_but4").click(function () {
+                clearQuestion();
+                chrome.runtime.sendMessage({
+                    action: "fromContent",
+                    title: "小梦-学习通助手",
+                    message: "任务已完成",
+                });
+            });
+            drag(document.getElementById("cj_move_page"));
+        })
+        .catch((error) => {
+            console.error("Error loading HTML:", error);
+        });
 }
-
 
 function drag(ele) {
-    let oldX, oldY, newX, newY
+    let oldX, oldY, newX, newY;
     ele.onmousedown = function (e) {
         if (!cj_move_page.style.right && !cj_move_page.style.bottom) {
-        cj_move_page.style.right = 0
-        cj_move_page.style.bottom = 0
+            cj_move_page.style.right = 0;
+            cj_move_page.style.bottom = 0;
         }
-        oldX = e.clientX
-        oldY = e.clientY
+        oldX = e.clientX;
+        oldY = e.clientY;
         document.onmousemove = function (e) {
-        newX = e.clientX
-        newY = e.clientY
-        cj_move_page.style.right = parseInt(cj_move_page.style.right) - newX + oldX + 'px'
-        cj_move_page.style.bottom = parseInt(cj_move_page.style.bottom) - newY + oldY + 'px'
-        oldX = newX
-        oldY = newY
-        }
+            newX = e.clientX;
+            newY = e.clientY;
+            cj_move_page.style.right =
+                parseInt(cj_move_page.style.right) - newX + oldX + "px";
+            cj_move_page.style.bottom =
+                parseInt(cj_move_page.style.bottom) - newY + oldY + "px";
+            oldX = newX;
+            oldY = newY;
+        };
         document.onmouseup = function () {
-        document.onmousemove = null
-        document.onmouseup = null
-        }
-    }
+            document.onmousemove = null;
+            document.onmouseup = null;
+        };
+    };
 }
 
-
-
+/**
+ * 读取历史配置并初始化
+ */
 function init() {
-    chrome.storage.sync.get('manageChaoXingPage', function(data) {
-        const manageChaoXingPage = data.manageChaoXingPage;
-        if (manageChaoXingPage && window.location.href.includes('https://mooc1.chaoxing.com/')) {
-            createPage()
+    chrome.storage.sync.get("initChaoXingAction", function (data) {
+        if (data.active) {
+            initChaoXing();
         } else {
-            $('#cj_move_page').remove()
+            $("#cj_move_page").remove();
         }
     });
 }
 
-init();
-
+/**
+ * 处理popup模块的消息
+ */
 chrome.runtime.onMessage.addListener(async (message) => {
-    if(message.action === "manageChaoXingPage") {
-        if(message.manageChaoXingPage) {
-            createPage()
+    if (message.action === "initChaoXingAction") {
+        if (message.active) {
+            initChaoXing();
         } else {
-            $('#cj_move_page').remove()
+            $("#cj_move_page").remove();
         }
-    } else if (message.action === 'initXiaomiTool') {
+    } else if (message.action === "initXiaomiTool") {
         initXiaomiTool(message.xiaomiToolStatus);
-    } else if (message.action === 'initCdutTool') {
+    } else if (message.action === "initCdutTool") {
         initCdutTool(message.cdutToolStatus);
     }
-})
+});
 
 function initXiaomiTool(isDisplay) {
     if (isDisplay) {
@@ -407,22 +385,24 @@ function initXiaomiTool(isDisplay) {
                 </div>
             </div>`);
 
-        $('body').append(page);
+        $("body").append(page);
 
         let intervalId;
         let observer;
         let timeoutId;
-        let lastSrc = '';
+        let lastSrc = "";
         let isLastImage = false;
         let imageSrcArray = []; // 用于存储图片链接
 
         // 点击下载元素
         function clickDownloadElement() {
-            const downloadElements = document.getElementsByClassName('icon-download-AGmtM');
+            const downloadElements = document.getElementsByClassName(
+                "icon-download-AGmtM"
+            );
             if (downloadElements.length > 0) {
                 downloadElements[0].click();
             } else {
-                alert('请在详情预览界面使用此功能');
+                alert("请在详情预览界面使用此功能");
                 stopExecution();
                 return;
             }
@@ -430,7 +410,8 @@ function initXiaomiTool(isDisplay) {
 
         // 点击下一页元素
         function clickNextElement() {
-            const nextElements = document.getElementsByClassName('ico-next-1RCGp');
+            const nextElements =
+                document.getElementsByClassName("ico-next-1RCGp");
             if (nextElements.length > 0) {
                 nextElements[0].click();
             } else {
@@ -440,7 +421,9 @@ function initXiaomiTool(isDisplay) {
         }
         // 重置按钮
         function resetButton() {
-            $('#myButton1').css('background-color', '#007BFF').text('开始一键下载');
+            $("#myButton1")
+                .css("background-color", "#007BFF")
+                .text("开始一键下载");
         }
         // 结束执行
         function stopExecution() {
@@ -457,20 +440,23 @@ function initXiaomiTool(isDisplay) {
             resetListenerButton();
         }
 
-        $('#myButton1').click(function() {
-            if ($('#myButton1').text() === '开始一键下载') {
-                let interval = parseInt($('#intervalInput').val());
+        $("#myButton1").click(function () {
+            if ($("#myButton1").text() === "开始一键下载") {
+                let interval = parseInt($("#intervalInput").val());
 
                 if (interval === 0) {
-                    const imgElement = document.querySelector('.img-3Ae3U');
+                    const imgElement = document.querySelector(".img-3Ae3U");
                     if (!imgElement) {
-                        alert('请在详情预览界面使用此功能');
+                        alert("请在详情预览界面使用此功能");
                         return;
                     }
                     observer = new MutationObserver((mutationsList) => {
                         for (let mutation of mutationsList) {
-                            if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
-                                const newSrc = imgElement.getAttribute('src');
+                            if (
+                                mutation.type === "attributes" &&
+                                mutation.attributeName === "src"
+                            ) {
+                                const newSrc = imgElement.getAttribute("src");
                                 if (newSrc !== lastSrc) {
                                     lastSrc = newSrc;
                                     isLastImage = false;
@@ -481,7 +467,9 @@ function initXiaomiTool(isDisplay) {
                                     clearTimeout(timeoutId);
                                     timeoutId = setTimeout(() => {
                                         observer.disconnect();
-                                        alert('4秒内未检测到图片变化，结束执行');
+                                        alert(
+                                            "4秒内未检测到图片变化，结束执行"
+                                        );
                                         resetButton();
                                     }, 4000);
                                 }
@@ -489,18 +477,25 @@ function initXiaomiTool(isDisplay) {
                         }
                     });
                     observer.observe(imgElement, { attributes: true });
-                    imgElement.setAttribute('src', imgElement.getAttribute('src'));
+                    imgElement.setAttribute(
+                        "src",
+                        imgElement.getAttribute("src")
+                    );
                     timeoutId = setTimeout(() => {
                         observer.disconnect();
-                        alert('4秒内未检测到图片变化，结束执行');
+                        alert("4秒内未检测到图片变化，结束执行");
                         resetButton();
                     }, 4000);
-                    $('#myButton1').css('background-color', 'red').text('执行中');
+                    $("#myButton1")
+                        .css("background-color", "red")
+                        .text("执行中");
                 } else if (isNaN(interval) || interval < 0) {
-                    alert('请输入一个有效的时间间隔（最小为0毫秒）');
+                    alert("请输入一个有效的时间间隔（最小为0毫秒）");
                     return;
                 } else {
-                    $('#myButton1').css('background-color', 'red').text('执行中');
+                    $("#myButton1")
+                        .css("background-color", "red")
+                        .text("执行中");
                     intervalId = setInterval(() => {
                         clickDownloadElement();
                         clickNextElement();
@@ -512,20 +507,22 @@ function initXiaomiTool(isDisplay) {
         });
 
         function resetListenerButton() {
-            $('#startListeningButton').css('background-color', '#007BFF').text('开始获取图片');
-            $('#imageCount').text('图片数量: ' + imageSrcArray.length);
+            $("#startListeningButton")
+                .css("background-color", "#007BFF")
+                .text("开始获取图片");
+            $("#imageCount").text("图片数量: " + imageSrcArray.length);
             if (imageSrcArray.length > 0) {
-                $('#downloadAllButton').show();
+                $("#downloadAllButton").show();
             } else {
-                $('#downloadAllButton').hide();
+                $("#downloadAllButton").hide();
             }
         }
         // 开始获取图片按钮的点击事件
-        $('#startListeningButton').click(function() {
-            if ($('#startListeningButton').text() === '开始获取图片') {
-                const imgElement = document.querySelector('.img-3Ae3U');
+        $("#startListeningButton").click(function () {
+            if ($("#startListeningButton").text() === "开始获取图片") {
+                const imgElement = document.querySelector(".img-3Ae3U");
                 if (!imgElement) {
-                    alert('请在详情预览界面使用此功能');
+                    alert("请在详情预览界面使用此功能");
                     return;
                 }
                 imageSrcArray = [];
@@ -533,34 +530,46 @@ function initXiaomiTool(isDisplay) {
                 // $('#downloadAllButton').hide();
                 observer = new MutationObserver((mutationsList) => {
                     for (let mutation of mutationsList) {
-                        if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
-                            const src = imgElement.getAttribute('src');
+                        if (
+                            mutation.type === "attributes" &&
+                            mutation.attributeName === "src"
+                        ) {
+                            const src = imgElement.getAttribute("src");
                             imageSrcArray.push(src);
-                            $('#imageCount').text('图片数量: ' + imageSrcArray.length);
+                            $("#imageCount").text(
+                                "图片数量: " + imageSrcArray.length
+                            );
                             clickNextElement();
                         }
                     }
                 });
                 observer.observe(imgElement, { attributes: true });
                 // 触发第一次监听
-                imgElement.setAttribute('src', imgElement.getAttribute('src'));
-                $('#startListeningButton').css('background-color', 'red').text('获取中');
-            } else if ($('#startListeningButton').text() === '获取中') {
+                imgElement.setAttribute("src", imgElement.getAttribute("src"));
+                $("#startListeningButton")
+                    .css("background-color", "red")
+                    .text("获取中");
+            } else if ($("#startListeningButton").text() === "获取中") {
                 stopExecution();
-                $('#startListeningButton').css('background-color', '#007BFF').text('继续获取');
+                $("#startListeningButton")
+                    .css("background-color", "#007BFF")
+                    .text("继续获取");
             }
         });
         // 下载全部图片按钮的点击事件
-        $('#downloadAllButton').click(function() {
+        $("#downloadAllButton").click(function () {
             // 传递图片链接给background
-            chrome.runtime.sendMessage({ action: 'downloadAllImages', images: imageSrcArray });
-            console.log('imageSrcArray', imageSrcArray);
+            chrome.runtime.sendMessage({
+                action: "downloadAllImages",
+                images: imageSrcArray,
+            });
+            console.log("imageSrcArray", imageSrcArray);
         });
 
         let x, y, l, t;
         let isDown = false;
 
-        page.mousedown(function(e) {
+        page.mousedown(function (e) {
             x = e.clientX;
             y = e.clientY;
             l = page.offset().left;
@@ -568,23 +577,23 @@ function initXiaomiTool(isDisplay) {
             isDown = true;
         });
 
-        $(document).mousemove(function(e) {
+        $(document).mousemove(function (e) {
             if (isDown) {
                 const nx = e.clientX - x + l;
                 const ny = e.clientY - y + t;
-                page.css({ left: nx + 'px', top: ny + 'px' });
+                page.css({ left: nx + "px", top: ny + "px" });
             }
         });
 
-        $(document).mouseup(function() {
+        $(document).mouseup(function () {
             isDown = false;
         });
 
-        page.on('selectstart', function(e) {
+        page.on("selectstart", function (e) {
             e.preventDefault();
         });
     } else {
-        $('#xiaomiToolPage').remove();
+        $("#xiaomiToolPage").remove();
     }
 }
 
@@ -640,26 +649,38 @@ function initCdutTool(isDisplay) {
                 </div>
             </div>`);
 
-        $('body').append(page);
+        $("body").append(page);
         // 重置按钮
         function resetButton() {
-            $('#start1').css('background-color', '#007BFF').text('开始一键评教');
+            $("#start1")
+                .css("background-color", "#007BFF")
+                .text("开始一键评教");
         }
         // 结束执行
         function stopExecution() {
             resetButton();
         }
-        $('#start1').click(function() {
-            if ($('#start1').text() === '开始一键评教') {
-                $('#start1').css('background-color', 'red').text('执行中');
+        $("#start1").click(function () {
+            if ($("#start1").text() === "开始一键评教") {
+                $("#start1").css("background-color", "red").text("执行中");
                 // 执行评教
                 try {
-                    document.querySelector('.el-textarea textarea.el-textarea__inner').value = parseInt($('#pingyu').val())
-                    document.querySelector('.el-textarea textarea.el-textarea__inner').dispatchEvent(new Event('input', { bubbles: true }));
-                    document.querySelectorAll('.rater_input').forEach(input => {
-                        input.value = 10;
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                    });
+                    document.querySelector(
+                        ".el-textarea textarea.el-textarea__inner"
+                    ).value = parseInt($("#pingyu").val());
+                    document
+                        .querySelector(
+                            ".el-textarea textarea.el-textarea__inner"
+                        )
+                        .dispatchEvent(new Event("input", { bubbles: true }));
+                    document
+                        .querySelectorAll(".rater_input")
+                        .forEach((input) => {
+                            input.value = 10;
+                            input.dispatchEvent(
+                                new Event("input", { bubbles: true })
+                            );
+                        });
                 } catch (e) {
                     console.error(e);
                 }
@@ -670,27 +691,29 @@ function initCdutTool(isDisplay) {
         });
         let x, y, l, t;
         let isDown = false;
-        page.mousedown(function(e) {
+        page.mousedown(function (e) {
             x = e.clientX;
             y = e.clientY;
             l = page.offset().left;
             t = page.offset().top;
             isDown = true;
         });
-        $(document).mousemove(function(e) {
+        $(document).mousemove(function (e) {
             if (isDown) {
                 const nx = e.clientX - x + l;
                 const ny = e.clientY - y + t;
-                page.css({ left: nx + 'px', top: ny + 'px' });
+                page.css({ left: nx + "px", top: ny + "px" });
             }
         });
-        $(document).mouseup(function() {
+        $(document).mouseup(function () {
             isDown = false;
         });
-        page.on('selectstart', function(e) {
+        page.on("selectstart", function (e) {
             e.preventDefault();
         });
     } else {
-        $('#cdutToolPage').remove();
+        $("#cdutToolPage").remove();
     }
 }
+
+init();

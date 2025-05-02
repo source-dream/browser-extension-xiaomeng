@@ -9,12 +9,7 @@
         "48": "icons/ym48x48.png",
         "128": "icons/ym128x128.png"
     },
-    "permissions": [
-        "tabs",
-        "downloads",
-        "notifications",
-        "storage"
-    ],
+    "permissions": ["tabs", "downloads", "notifications", "storage"],
     "host_permissions": [
         "https://api.sourcedream.cn/*",
         "https://mooc1.chaoxing.com/*",
@@ -25,14 +20,24 @@
         "service_worker": "background/index.js",
         "type": "module"
     },
-    "content_scripts": [  
+    "content_scripts": [
         {
-            "matches": ["https://mooc1.chaoxing.com/*", "https://i.mi.com/*", "http://jxpc-cdut-edu-cn.vpn.cdut.edu.cn:8118/*"],
+            "matches": [
+                "https://mooc1.chaoxing.com/*",
+                "https://i.mi.com/*",
+                "http://jxpc-cdut-edu-cn.vpn.cdut.edu.cn:8118/*"
+            ],
             "css": ["content/index.css"],
             "js": ["content/jquery.js", "content/index.js"]
         }
     ],
     "action": {
         "default_popup": "popup/index.html"
-    }
+    },
+    "web_accessible_resources": [
+        {
+            "resources": ["content/index.html"],
+            "matches": ["<all_urls>"]
+        }
+    ]
 }
