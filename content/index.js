@@ -19,6 +19,17 @@ function compare(a, b) {
     return count / maxLength;
 }
 
+/**
+ * 格式化题目
+ */
+function formatTitle(title) {
+    title = title.replace(/^\d{1,2}\./, ""); // 去除题号
+    title = title.replace(/\s/g, ""); // 去除空格
+    title = title.replace(/\(单选题\)/, "").replace(/\(多选题\)/, ""); // 去除题型
+    title = title.replace(/[\[【]\s*\d+\s*分\s*[\]】]/g, "");
+    return title;
+}
+
 async function answerQuestion() {
     const inp1 = document.getElementById("cj_inp1");
     const key = inp1.value;
@@ -39,13 +50,14 @@ async function answerQuestion() {
     const fetchPromises = [];
     const reportedErrors = new Set(); // 用于跟踪已报告的错误
 
-    // 初始验证请求
-    const prodUrl = "https://api.sourcedream.cn/v2/question/query";
+    // 请求参数配置
+    const url = "https://api.sourcedream.cn/v2/question/query";
     fetchController = new AbortController();
     const signal = fetchController.signal;
 
     try {
-        const initialResponse = await fetch(prodUrl, {
+        // 密钥验证
+        const resp = await fetch(url, {
             method: "POST",
             signal,
             body: JSON.stringify({ title: "initial_check", key: key }),
@@ -53,14 +65,15 @@ async function answerQuestion() {
                 "Content-Type": "application/json",
             },
         });
-        data = await initialResponse.json();
-
+        data = await resp.json();
         if (data.code === 401) {
             throw new Error(
                 data.message ||
                     "密钥错误，请检查您的密钥。如果无法答题 请联系QQ: 1054636553"
             );
         }
+
+        // 构造Promise数组
         questions.forEach((question) => {
             const check_answer = question.querySelector(".check_answer");
             const check_answer_dx = question.querySelector(".check_answer_dx");
@@ -70,12 +83,9 @@ async function answerQuestion() {
 
             const questionTextElement = question.querySelector("h3");
             const questionText = questionTextElement.innerText.trim();
-            // 去除题目前缀 ^\d{1,2}\.
-            let title = questionText.replace(/^\d{1,2}\./, "");
-            // 去除题目中的空格
-            title = title.replace(/\s/g, "");
-            title = title.replace(/\(单选题\)/, "").replace(/\(多选题\)/, "");
-            const fetchPromise = fetch(prodUrl, {
+            const title = formatTitle(questionText);
+
+            const fetchPromise = fetch(url, {
                 method: "POST",
                 signal,
                 body: JSON.stringify({ title: title, key: key }),
@@ -332,6 +342,9 @@ function initChaoXing() {
     drag(document.getElementById("cj_move_page"));
 }
 
+/**
+ * 窗口拖动实现函数
+ */
 function drag(ele) {
     let oldX, oldY, newX, newY;
     ele.onmousedown = function (e) {
