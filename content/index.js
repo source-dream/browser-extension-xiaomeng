@@ -39,9 +39,9 @@ async function answerQuestion() {
             title: "小梦-学习通助手",
             message: "请输入卡密 获取卡密联系QQ: 1054636553",
         });
-        const but_auto_answer = document.getElementById("but_auto_answer");
-        but_auto_answer.textContent = "自动答题";
-        but_auto_answer.style.backgroundColor = "#4CAF50";
+        const butAnswerAuto = document.getElementById("butAnswerAuto");
+        butAnswerAuto.textContent = "自动答题";
+        butAnswerAuto.style.backgroundColor = "#4CAF50";
         isAnswering = false;
         return;
     }
@@ -143,8 +143,8 @@ async function answerQuestion() {
                         }
                     });
 
-                    const remain = data.remain;
-                    $("#cj_balance").text(remain);
+                    // const remain = data.remain;
+                    // $("#cj_balance").text(remain);
                 })
                 .catch((error) => {
                     if (!reportedErrors.has(error.message)) {
@@ -172,9 +172,9 @@ async function answerQuestion() {
         });
 
         // 复原按钮样式
-        const but_auto_answer = document.getElementById("but_auto_answer");
-        but_auto_answer.textContent = "自动答题";
-        but_auto_answer.style.backgroundColor = "#4CAF50";
+        const butAnswerAuto = document.getElementById("butAnswerAuto");
+        butAnswerAuto.textContent = "自动答题";
+        butAnswerAuto.style.backgroundColor = "#4CAF50";
         isAnswering = false;
     } catch (error) {
         if (!reportedErrors.has(error.message)) {
@@ -189,9 +189,9 @@ async function answerQuestion() {
             reportedErrors.add(error.message); // 记录已报告的错误
         }
         // 复原按钮样式
-        const but_auto_answer = document.getElementById("but_auto_answer");
-        but_auto_answer.textContent = "自动答题";
-        but_auto_answer.style.backgroundColor = "#4CAF50";
+        const butAnswerAuto = document.getElementById("butAnswerAuto");
+        butAnswerAuto.textContent = "自动答题";
+        butAnswerAuto.style.backgroundColor = "#4CAF50";
         isAnswering = false;
     }
 }
@@ -217,114 +217,28 @@ function clearQuestion() {
  */
 function initChaoXing() {
     const page = $(`
-        <div
-    id="cj_move_page"
-    style="
-        border-radius: 10px;
-        width: 232px;
-        height: 238px;
-        text-align: center;
-        background-color: #fff;
-        border: 1px solid #ccc;
-        position: fixed;
-        top: 100px;
-        left: 100px;
-        z-index: 1000;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        overflow: hidden;
-    "
->
-    <h1 id="cj_move_h1">小梦-学习通助手</h1>
-    <button
-        id="but_auto_answer"
-        style="
-            margin: 10px;
-            background-color: #4caf50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
-        "
-    >
-        自动答题
-    </button>
-    <button
-        id="cj_but2"
-        style="
-            margin: 10px;
-            background-color: #4caf50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
-        "
-    >
-        随机答题
-    </button>
-    <button
-        id="cj_but3"
-        style="
-            margin: 10px;
-            background-color: #4caf50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
-        "
-    >
-        智能答题
-    </button>
-    <button
-        id="cj_but4"
-        style="
-            margin: 10px;
-            background-color: #4caf50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
-        "
-    >
-        清空记录
-    </button>
-    <input
-        id="cj_inp1"
-        placeholder="请输入你的key"
-        style="
-            margin: 10px;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            width: calc(100% - 22px);
-            box-sizing: border-box;
-        "
-    />
-    <label id="cj_lab1" style="margin: 10px; font-weight: bold">
-        卡密余额: <span id="cj_balance">开始答题后可见</span>
-    </label>
-</div>
-
-        `);
+<div id="chaoxing-box"style="top: 100px;left: 100px;">
+    <h1 class="title">小梦-学习通助手</h1>
+    <div class="function">
+        <button id="btn-answer-auto">自动答题</button>
+        <button class="cj_but2">随机答题</button>
+        <button id="cj_but3">智能答题</button>
+        <button id="cj_but4">清空记录</button>
+    </div>
+    <input id="cj_inp1" placeholder="请输入源梦百货铺密钥"/>
+</div>`);
     $("body").append(page);
-    $("#but_auto_answer").on("click", async function () {
-        const but_auto_answer = $(this);
+    $("#btn-answer-auto").on("click", async function () {
+        const butAnswerAuto = $(this);
         if (!isAnswering) {
-            but_auto_answer.text("停止答题").css("background-color", "red");
+            butAnswerAuto.text("停止答题").css("background-color", "red");
             answerQuestion();
         } else {
             if (fetchController) {
                 fetchController.abort();
                 fetchController = null;
             }
-            but_auto_answer.text("自动答题").css("background-color", "#4CAF50");
+            butAnswerAuto.text("自动答题").css("background-color", "#4CAF50");
         }
         isAnswering = !isAnswering;
     });
@@ -339,7 +253,7 @@ function initChaoXing() {
             message: "任务已完成",
         });
     });
-    drag(document.getElementById("cj_move_page"));
+    drag(document.getElementById("chaoxing-box"));
 }
 
 /**
